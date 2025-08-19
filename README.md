@@ -64,3 +64,6 @@ Only PacBio data for now, only single samples for now
 - methylation tools (only if .bam is input format)
 - testing cuteSV, svim Clair3, delly 
 - snp /sv annotation: annotsv,
+- longphase for sv,snp,cnv phasing
+
+## current tools

@@ -13,7 +13,7 @@ def get_folder_name(samplename_with_bam): # only one sample name for each run al
 
 output_dir=config["output_dir"]
 
-
+include:"prep.smk"
 
 # this is the same as the get_output_files except minus the multiqc report
 def get_mqc_files():
@@ -28,7 +28,7 @@ def get_mqc_files():
     all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #  phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz" 
-    all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_snps_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    #all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_snps_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #fix that either bcftools or deepvariant output is used
     
     #         vcf="{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz"
@@ -61,7 +61,7 @@ def get_output_files():
     all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #  phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz" 
-    all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_snps_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    #all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_snps_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #fix that either bcftools or deepvariant output is used
     
     #         vcf="{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz"
@@ -69,8 +69,7 @@ def get_output_files():
     if config["use_kraken2"]:
         all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-
-
+    all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -108,135 +107,6 @@ rule multiqc:
         """
         multiqc {params.dir} --filename {output} --no-data-dir >> {log} 2>&1
         """
-
-
-rule index_reference:
-    input:
-        reference=config["reference"]
-    output:
-        index="{output_dir}/reference.mmi"
-    conda:
-        "../envs/pbmm2.yaml"
-    log:
-        "{output_dir}/logs/index_reference.log"
-    resources:
-        threads=lambda wildcards, attempt: attempt * 12,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
-    message:
-        "Indexing reference genome..."
-    shell:
-        """
-        pbmm2 index {input.reference} {output} --num-threads {resources.threads} >> {log} 2>&1
-        samtools faidx {input.reference} >> {log} 2>&1
-        """
-
-rule demultiplex:
-    input:
-        full_bam="{sample}.bam"
-    output:
-        demux_fastq="{output_dir}/bams/{sample}_demux.bam"
-    conda:
-        "../envs/lima.yaml"
-    params:
-        barcodes=config["barcodes_lima_fasta"]
-    log:
-        "{output_dir}/logs/demultiplex_{sample}.log"
-    resources:
-        threads=lambda wildcards, attempt: attempt * 12,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 12 + (attempt * 12)
-
-    message:
-        "Demultiplexing  {sample}..."
-    shell:
-        """
-        lima {input.full_bam} {params.barcodes} {output} --num-threads {resources.threads} >> {log} 2>&1
-        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-        samtools index {output} -@ {resources.threads} >> {log} 2>&1
-        """
-#
-rule map:
-    input:
-        bam = "{sample}.bam" if config["demultiplex"] else "{sample}_demux.bam",
-        index ="{output_dir}/reference.mmi",
-    output:
-        bam ="{output_dir}/bams/{sample}_aligned.bam"
-    conda:
-        "../envs/pbmm2.yaml"
-    log:
-        "{output_dir}/logs/preprocess_{sample}.log"
-
-    resources:
-        threads=lambda wildcards, attempt: attempt * 96,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
-
-    message:
-        "Aligning reads for {input.bam} ..."
-    shell:
-        """
-        pbmm2 align {input.index} {input.bam} --num-threads {resources.threads} --sort {output} >> {log} 2>&1
-        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-        samtools index {output} >> {log} 2>&1
-        """
-
-# using .fastq.gz files is also possible, but loses a lot of data included in the .bam files, especially the kinetics!
-rule map_fq_gz:
-    input:
-        bam = "{sample}.fastq.gz" if config["demultiplex"] else "{sample}_demux.bam",
-        index ="{output_dir}/reference.mmi",
-    output:
-        bam ="{output_dir}/bams/{sample}_aligned.bam"
-    conda:
-        "../envs/pbmm2.yaml"
-    log:
-        "{output_dir}/logs/preprocess_{sample}.log"
-
-    resources:
-        threads=lambda wildcards, attempt: attempt * 96,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
-
-    message:
-        "Aligning reads for {input.bam} ..."
-    shell:
-        """
-        pbmm2 align {input.index} {input.bam} --num-threads {resources.threads} --sort {output} >> {log} 2>&1
-        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-        samtools index {output} -@ {resources.threads} >> {log} 2>&1
-        """
-
-# using .fastq.gz files is also possible, but loses a lot of data included in the .bam files, especially the kinetics!
-rule demultiplex_fq_gz:
-    input:
-        full_bam="{sample}.fastq.gz"
-    output:
-        demux_fastq="{output_dir}/bams/{sample}_demux.bam"
-    conda:
-        "../envs/lima.yaml"
-    params:
-        barcodes=config["barcodes_lima_fasta"]
-    log:
-        "{output_dir}/logs/demultiplex_{sample}.log"
-    resources:
-        threads=lambda wildcards, attempt: attempt * 12,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 12 + (attempt * 12)
-
-    message:
-        "Demultiplexing  {sample}..."
-    shell:
-        """
-        lima {input.full_bam} {params.barcodes} {output} --num-threads {resources.threads} >> {log} 2>&1
-        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-        samtools index {output} -@ {resources.threads} >> {log} 2>&1
-        """
-
-
-
-
-
 
 
 rule deepvariant:
@@ -463,7 +333,7 @@ rule sniffles:
 
 
 
-rule whatshap:
+rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase is used
     input: 
         vcf= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
         bam="{output_dir}/bams/{sample}_aligned.bam",
@@ -576,6 +446,40 @@ rule kraken2:
         samtools fastq {params.subsetted_bam} -@ {resources.threads} >{params.subsetted_fastq} 2>{log}
         kraken2 --use-names --db {params.kraken_db_folder} --threads {resources.threads} --confidence 0.05 --report {output.kraken2_report} {params.subsetted_fastq} >{output.kraken2_outfile} 2>{log}
         """
+
+
+
+rule longphase: # phases snps, svs and more
+    input:
+        reference=config["reference"], # must be fasta
+        gz_file= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
+        svs="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz",
+        bam="{output_dir}/bams/{sample}_aligned.bam"
+    output:
+        vcf_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf"
+    conda:
+        "../envs/longphase.yaml"
+    log:
+        "{output_dir}/logs/longphase_{sample}.log"
+    params:
+        prefix="{output_dir}/variants/longphase_{sample}/{sample}_phased"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 24,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
+        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+    message:
+        "Phasing snps and svs with longphase for {input.bam} ..."
+    shell:
+        """
+        tabix -f {input.gz_file} 2>{log}
+        tabix -f {input.svs} 2>{log}
+        longphase phase -s {input.gz_file} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} 2>{log}
+        """
+
+
+
+
+
 
 ########################
 #
