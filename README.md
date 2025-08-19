@@ -35,14 +35,15 @@ Only PacBio data for now, only single samples for now
 
 ## included tools:
 - deepvariant or bcftools for snp calling
-- snps get used for phasing with whatshap and hiphase 
+- snps get used for phasing with whatshap and longphase
 - paraphase 
 - trgt
 - hificnv 
-- sniffles for sv calls
-- sawfish for svs and cnvs (results phased)
+- sniffles for sv calls that get phased with longphase
+- sawfish for svs and cnvs (results phased by sawfish)
 - mosdepth, multiqc
 - pbmm2 for mapping
+- kraken2 for contamination detection (downsamples massively, needs kraken2 database)
 - .fastq.gz files or .bam (unmapped) as input file
 - demultiplexing of input as option, will not split the files per barcode.
 - for now one .bam per sample
@@ -66,4 +67,3 @@ Only PacBio data for now, only single samples for now
 - snp /sv annotation: annotsv,
 - longphase for sv,snp,cnv phasing
 
-## current tools

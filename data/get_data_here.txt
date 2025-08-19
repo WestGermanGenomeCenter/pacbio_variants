@@ -1,2 +1,3 @@
 https://42basepairs.com/browse/gs/deepvariant/models/DeepVariant
 https://github.com/broadinstitute/tandem-repeat-catalog/releases
+# kraken2 database download: https://benlangmead.github.io/aws-indexes/k2

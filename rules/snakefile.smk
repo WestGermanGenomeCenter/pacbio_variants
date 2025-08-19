@@ -346,13 +346,14 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
     log:
         "{output_dir}/logs/whatshap_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 32,
+        threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 1,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     params:
         haplotaged_bam="{output_dir}/variants/whatshap_{sample}/{sample}_haplotaged.bam",
         sorted="{output_dir}/variants/whatshap_{sample}/{sample}_phased_sorted.vcf.gz",
-        folder="{output_dir}/variants/whatshap_{sample}"
+        folder="{output_dir}/variants/whatshap_{sample}",
+        stats_file="{output_dir}/variants/whatshap_{sample}_stats.out"
     message:
         "Phasing haplotypes for {input.bam}..."
     shell:
@@ -362,7 +363,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         bcftools index -t  {params.sorted} >> {log} 2>&1
         mkdir -p {params.folder} >> {log} 2>&1
         whatshap haplotag {params.sorted} {input.bam} --output {params.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
-        whatshap stats {output.phased_vcf} >> {log} 2>&1
+        whatshap stats {output.phased_vcf} > {params.stats_file} 2>{log}
         """
 
 rule hificnv:
