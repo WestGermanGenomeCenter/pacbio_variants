@@ -137,3 +137,56 @@ rule demultiplex_fq_gz:
         samtools index {output} -@ {resources.threads} >> {log} 2>&1
         """
 
+
+rule mosdepth:
+    input:
+        bam="{output_dir}/bams/{sample}_aligned.bam",
+    output:
+        depth_file="{output_dir}/mosdepth/{sample}.mosdepth.summary.txt"
+    params:
+        prefix="{output_dir}/mosdepth/{sample}"
+    conda:
+        "../envs/mosdepth.yaml"
+    log:
+        "{output_dir}/logs/mosdepth_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 8,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
+        mem_gb=lambda wildcards, attempt: 4 + (attempt * 12)
+
+    message:
+        "reporting mapping depth of  {input.bam}..."
+    shell:
+        """
+        mosdepth --threads {resources.threads} {params.prefix} {input.bam} >> {log} 2>&1
+        """
+
+
+
+rule kraken2:
+    input:
+        bam = "{sample}.bam" if config["demultiplex"] else "{sample}_demux.bam",
+    output:
+        kraken2_report="{output_dir}/kraken2/{sample}_kraken2.report",
+        kraken2_outfile=temp("{output_dir}/kraken2/{sample}_kraken2.kraken2")
+    params:
+        subsetted_bam=temp("{output_dir}/kraken2/{sample}_subsetted.bam"),
+        subsetted_fastq=temp("{output_dir}/kraken2/{sample}_subsetted.fastq"),
+        kraken_db_folder=config["kraken2_db_folder"],
+    conda:
+        "../envs/kraken2.yaml"
+    log:
+        "{output_dir}/logs/kraken2_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 8,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
+        mem_gb=lambda wildcards, attempt: 4 + (attempt * 12)
+
+    message:
+        "reporting sample species with kraken2  {input.bam}..."
+    shell:
+        """
+        samtools view -s 0.01 -b {input.bam} -@ {resources.threads} >{params.subsetted_bam} 2>{log}
+        samtools fastq {params.subsetted_bam} -@ {resources.threads} >{params.subsetted_fastq} 2>{log}
+        kraken2 --use-names --db {params.kraken_db_folder} --threads {resources.threads} --confidence 0.05 --report {output.kraken2_report} {params.subsetted_fastq} >{output.kraken2_outfile} 2>{log}
+        """
