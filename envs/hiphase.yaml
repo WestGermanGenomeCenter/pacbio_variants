@@ -1,0 +1,8 @@
+name: hiphase
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - hiphase=1.5.0
+  - tabix=1.11
+  - bcftools=1.19

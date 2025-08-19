@@ -1,0 +1,6 @@
+name: hificnv
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - hificnv=1.0.1

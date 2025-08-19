@@ -1,0 +1,7 @@
+name: whatshap
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - whatshap=2.8
+  - bcftools=1.19

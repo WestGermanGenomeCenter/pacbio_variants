@@ -1,0 +1,12 @@
+reference: "/mnt/data/pipelines/pb_variants/input/reference.fasta"
+output_dir: "results" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
+demultiplex: True  # Set to true to enable demultiplexing
+merge: true        # Set to true to enable merging of input files
+use_deepvariant: False # default = False, uses bcftools instead. deepvariant only works on the HPC for now
+
+#snp_annotation_file: "path/to/snp_annotation.gff"  # Path to SNP annotation file
+#sv_annotation_file: "path/to/sv_annotation.gff"    # Path to SV annotation file
+barcodes_lima_fasta: "/mnt/data/pipelines/pb_variants/input/pacbio_barcodes.fasta/lima_barcodes.fasta"
+sif_image_deepvariant: "path/to/deepvariant.sif" # get this by doing: singularity pull docker://google/deepvariant:latest
+bcftools_min_q_filter: "20"
+repeats_file: "data/repeat_catalog_v1.hg38.1_to_1000bp_motifs.TRGT.bed"

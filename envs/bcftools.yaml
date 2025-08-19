@@ -1,0 +1,11 @@
+name: bcftools
+channels:    # apparently there is a bcftools error if installed via conda through anything else than the conda-forge channel
+  - conda-forge
+  - bioconda
+  - http://conda.repo.test.hhu.de/conda-forge
+  - http://conda.repo.test.hhu.de/bioconda
+  - http://conda.repo.test.hhu.de/main
+dependencies:
+  - bcftools=1.19
+  - gsl
+  - tabix=1.11

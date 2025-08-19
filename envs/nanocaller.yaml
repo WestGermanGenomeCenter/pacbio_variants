@@ -1,0 +1,6 @@
+name: nanocaller
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - nanocaller=3.6.2

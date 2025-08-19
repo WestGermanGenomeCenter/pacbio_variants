@@ -1,0 +1,10 @@
+name: paraphase
+channels:
+  - http://conda.repo.test.hhu.de/conda-forge
+  - http://conda.repo.test.hhu.de/bioconda
+  - http://conda.repo.test.hhu.de/main
+  - bioconda
+  - conda-forge
+dependencies:
+  - paraphase=3.3.2
+  - minimap2=2.30

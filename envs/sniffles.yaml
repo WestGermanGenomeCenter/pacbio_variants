@@ -1,0 +1,17 @@
+name: sniffles
+channels:
+  - http://conda.repo.test.hhu.de/conda-forge
+  - http://conda.repo.test.hhu.de/bioconda
+  - http://conda.repo.test.hhu.de/main
+  - bioconda
+  - conda-forge
+dependencies:
+  - sniffles=2.6.3
+  - samtools=1.22.1
+  - htslib
+#  - bcftools=1.19
+  - tabix=1.11
+# - gzip
+  #- pysam=0.23.3
+#  - sniffles=2.6.3
+  #- sniffles=2.5.2

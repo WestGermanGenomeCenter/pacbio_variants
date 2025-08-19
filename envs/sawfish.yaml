@@ -1,0 +1,6 @@
+name: sawfish
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - sawfish=2.0.3
