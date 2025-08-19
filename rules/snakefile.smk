@@ -7,21 +7,11 @@ samples = samples_df['sample'].tolist()
 filenames_without_extension = [file.rstrip('.bam') for file in samples]
 #print("filenames without extension:")
 #print(filenames_without_extension)
-#filenames_without_extension = [os.path.splitext(samples)[0] for sample in samples]
-#bamfiles = dict(zip(samples_df['sample_name'], samples_df['bam_file']))
 def get_folder_name(samplename_with_bam): # only one sample name for each run allowed#
         only_folder_name=samplename_with_bam.split(".bam")[0]
         return (only_folder_name)
-# use this function later to remove the .bam files from the output folder name
-
-# how to run: snakemake -c 12 --jobs 2 -s rules/snakefile.smk --jobscript scripts/jobscript.sh --use-conda
-
-#get_sample_short=
-#wildcard_constraints:
-#        sample = "[^/]+\\.bam$"  # Matches any string that ends with a single .bam
 
 output_dir=config["output_dir"]
-# get the correct files to be named and remove the .bam_aligned.bam -> aligned.bam, already created filenames_without_extension, but can do a function
 
 
 
@@ -37,7 +27,7 @@ def get_output_files():
     all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #  phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz" 
- #   all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #fix that either bcftools or deepvariant output is used
     
     #         vcf="{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz"
@@ -60,14 +50,7 @@ rule all:
 
 rule multiqc:
     input:
-    #    expand("{output_dir}/variants/{sample}_variants.vcf", sample=filenames_without_extension, output_dir=config["output_dir"]), # deepvariant
-
-    # the hiphase output should be the actually phased snps and svs, but hiphase does not work for now
-      #  expand("{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"]),
-      # fix that either bcftools or deepvariant output is used
-
-
-
+        expand("{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"]),
         expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"]),
         expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"]),
         expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"]),
@@ -381,8 +364,6 @@ rule hiphase: # phases snps, svs and more
         "../envs/hiphase.yaml"
     log:
         "{output_dir}/logs/hiphase_{sample}.log"
-    params:
-        merged_file= "{output_dir}/variants/hiphase_{sample}/{sample}_merged_svs_and_snps.vcf.gz"
     resources:
         threads=lambda wildcards, attempt: attempt * 24,
         time_hrs=lambda wildcards, attempt: attempt * 1,
