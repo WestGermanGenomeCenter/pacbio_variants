@@ -52,7 +52,7 @@ Only PacBio data for now, only single samples for now
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
 - cp/mv/ln your unmapped .bam or .fastq file into the root folder of this directory
-- edit samplesheet.csv with your filename minus the ending, so for sample.bam you should enter sample 
+- edit samplesheet.csv with your filename 
     - one sample per line, do not delete the header line
 - edit config.yaml to your liking/ folder structure
 - make sure you are in an interactive terminal session inside a screen / tmux or similar

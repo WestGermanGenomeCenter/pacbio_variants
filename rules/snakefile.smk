@@ -236,11 +236,12 @@ rule sniffles:
         reference=config["reference"], # must be fasta
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
-        vcf="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf"
+        vcf="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf",
+        gziped_file="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz"
+
     params:
         plot_out="{output_dir}/sniffles_{sample}/{sample}_sniffles_plots/",
         snf="{output_dir}/variants/sniffles_{sample}/{sample}_sniffles.snf",
-        gziped_file="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz"
     conda:
         "../envs/sniffles.yaml"
     log:
@@ -253,9 +254,9 @@ rule sniffles:
         "Calling structural variants for {input.bam} using Sniffles..."
     shell:
         """
-        sniffles --input {input.bam} --vcf {output} --reference {input.reference} --snf {params.snf} --allow-overwrite >> {log} 2>&1
-        # python3 -m sniffles2_plot -i {output} -o {params.plot_out} >> {log} 2>&1
-        bgzip -c {output.vcf} > {params.gziped_file} 2>{log}
+        sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite >> {log} 2>&1
+        # python3 -m sniffles2_plot -i {output.vcf} -o {params.plot_out} >> {log} 2>&1
+        bgzip -c {output.vcf} > {output.gziped_file} 2>{log}
         """
 
 

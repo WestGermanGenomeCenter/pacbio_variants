@@ -17,7 +17,7 @@ output_dir=config["output_dir"]
 
 
 
-rule hiphase: # phases snps, svs and more
+rule hiphase: # phases snps, svs and more but is not compatible with eiter bcftools or sniffles output files
     input:
         reference=config["reference"], # must be fasta
         gz_file= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
