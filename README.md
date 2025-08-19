@@ -63,4 +63,4 @@ Only PacBio data for now, only single samples for now
 - trio calling : deeptrio, glnexus
 - methylation tools (only if .bam is input format)
 - testing cuteSV, svim Clair3, delly 
-- kraken2
+- snp /sv annotation: annotsv,

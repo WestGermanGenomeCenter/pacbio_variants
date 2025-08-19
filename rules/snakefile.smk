@@ -15,6 +15,40 @@ output_dir=config["output_dir"]
 
 
 
+# this is the same as the get_output_files except minus the multiqc report
+def get_mqc_files():
+    all=list()
+    if config["use_deepvariant"]:
+        all.extend(expand("{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+    if not config["use_deepvariant"]:
+        all.extend(expand("{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+    all.extend(expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    #  phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz" 
+    all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_snps_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    #fix that either bcftools or deepvariant output is used
+    
+    #         vcf="{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz"
+
+    if config["use_kraken2"]:
+        all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+
+    all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
+    all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
+    all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
+    all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
+    return all
+
+
+
+
 def get_output_files():
     all=list()
     if config["use_deepvariant"]:
@@ -27,7 +61,7 @@ def get_output_files():
     all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #  phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz" 
-    all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/hiphase_{sample}/{sample}_snps_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     #fix that either bcftools or deepvariant output is used
     
     #         vcf="{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz"
@@ -55,19 +89,7 @@ rule all:
 
 rule multiqc:
     input:
-        expand("{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"]),
-        expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"]),
-        expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"]),
-        expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"]),
-        expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"]),    
-        expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"]),
-        expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"]),   
-
-        if config["use_kraken2"]:
-            expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"]),
-
-
-
+        get_mqc_files()
     output:
         mqc_report="{output_dir}/multiqc_report.html"
     conda:
@@ -365,7 +387,7 @@ rule hiphase: # phases snps, svs and more
         svs="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz",
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
-        vcf_phased="{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz"
+        vcf_phased="{output_dir}/variants/hiphase_{sample}/{sample}_snps_phased.vcf.gz"
     conda:
         "../envs/hiphase.yaml"
     log:
@@ -380,7 +402,7 @@ rule hiphase: # phases snps, svs and more
         """
         tabix -f {input.gz_file} 2>{log}
         tabix -f {input.svs} 2>{log}
-        hiphase --bam {input.bam} --reference {input.reference} --threads {resources.threads} --vcf {input.svs} --output-vcf {output.vcf_phased}  --ignore-read-groups --min-vcf-qual 40 >> {log} 2>&1
+        hiphase --bam {input.bam} --reference {input.reference} --threads {resources.threads} --vcf {input.gz_file} --output-vcf {output.vcf_phased}  --ignore-read-groups --min-vcf-qual 40 >> {log} 2>&1
         """    
 
 
