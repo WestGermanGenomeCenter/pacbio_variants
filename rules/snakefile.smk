@@ -32,6 +32,11 @@ def get_output_files():
     
     #         vcf="{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz"
 
+    if config["use_kraken2"]:
+        all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -57,8 +62,11 @@ rule multiqc:
         expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"]),    
         expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"]),
         expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"]),   
-   
- 
+
+        if config["use_kraken2"]:
+            expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"]),
+
+
 
     output:
         mqc_report="{output_dir}/multiqc_report.html"
@@ -260,9 +268,9 @@ rule bcftools_snp:
         "Calling SNPs for {input.bam} using bcftools..."
     shell:
         """
-        bcftools mpileup -O b -f {input.reference} {input.bam} --threads {resources.threads} -o {params.in_between_file} >> {log} 2>&1
+        bcftools mpileup -O b -f {input.reference} {input.bam} --threads {resources.threads} -o {params.in_between_file} -Q {params.min_qual_filter} -q {params.min_qual_filter} >> {log} 2>&1
         bcftools call -mv --threads {resources.threads} -Oz -o {output.vcf_bcf} {params.in_between_file} >> {log} 2>&1
-        bcftools view {output.vcf_bcf} -i 'QUAL>={params.min_qual_filter}' --threads {resources.threads} -Oz -o {output.gz_file} -W >> {log} 2>&1
+        bcftools view {output.vcf_bcf} -i 'QUAL>={params.min_qual_filter}' --threads {resources.threads} -Oz -o {output.gz_file} --write-index >> {log} 2>&1
         """    
 
 # command > out 2>error
@@ -354,11 +362,9 @@ rule hiphase: # phases snps, svs and more
     input:
         reference=config["reference"], # must be fasta
         gz_file= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
-# add svs 
         svs="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz",
-        #gz_file="{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz" if config["use_deepvariant"] == 'False' else "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz",
         bam="{output_dir}/bams/{sample}_aligned.bam"
-    output: # vcf_bcf="{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf"
+    output:
         vcf_phased="{output_dir}/variants/hiphase_{sample}/{sample}_svs_phased.vcf.gz"
     conda:
         "../envs/hiphase.yaml"
@@ -374,18 +380,8 @@ rule hiphase: # phases snps, svs and more
         """
         tabix -f {input.gz_file} 2>{log}
         tabix -f {input.svs} 2>{log}
-        # needs a singular input file
         hiphase --bam {input.bam} --reference {input.reference} --threads {resources.threads} --vcf {input.svs} --output-vcf {output.vcf_phased}  --ignore-read-groups --min-vcf-qual 40 >> {log} 2>&1
         """    
-
-
-
-
-# only active once 
-# phasing snps for 
-# rework output: for each tool output one folder
-# including the log file maybe
-# in that folder all samples the same output files
 
 
 rule nanocaller: # output snps are already haplotaged
@@ -530,6 +526,34 @@ rule mosdepth:
         """
 
 
+
+rule kraken2:
+    input:
+        bam = "{sample}.bam" if config["demultiplex"] else "{sample}_demux.bam",
+    output:
+        kraken2_report="{output_dir}/kraken2/{sample}_kraken2.report",
+        kraken2_outfile=temp("{output_dir}/kraken2/{sample}_kraken2.kraken2")
+    params:
+        subsetted_bam=temp("{output_dir}/kraken2/{sample}_subsetted.bam"),
+        subsetted_fastq=temp("{output_dir}/kraken2/{sample}_subsetted.fastq"),
+        kraken_db_folder=config["kraken2_db_folder"],
+    conda:
+        "../envs/kraken2.yaml"
+    log:
+        "{output_dir}/logs/kraken2_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 8,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
+        mem_gb=lambda wildcards, attempt: 4 + (attempt * 12)
+
+    message:
+        "reporting sample species with kraken2  {input.bam}..."
+    shell:
+        """
+        samtools view -s 0.01 -b {input.bam} -@ {resources.threads} >{params.subsetted_bam} 2>{log}
+        samtools fastq {params.subsetted_bam} -@ {resources.threads} >{params.subsetted_fastq} 2>{log}
+        kraken2 --use-names --db {params.kraken_db_folder} --threads {resources.threads} --confidence 0.05 --report {output.kraken2_report} {params.subsetted_fastq} >{output.kraken2_outfile} 2>{log}
+        """
 
 ########################
 #

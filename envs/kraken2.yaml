@@ -1,4 +1,4 @@
-name: bcftools
+name: kraken2
 channels:    # apparently there is a bcftools error if installed via conda through anything else than the conda-forge channel
   - conda-forge
   - bioconda
@@ -6,6 +6,5 @@ channels:    # apparently there is a bcftools error if installed via conda throu
 #  - http://conda.repo.test.hhu.de/bioconda
 #  - http://conda.repo.test.hhu.de/main
 dependencies:
-#  - bcftools=1.22 # installation brings problems, but as apt installation it works
-  - gsl
-  - tabix=1.11
+  - samtools=1.22.1
+  - kraken2=2.1.6
