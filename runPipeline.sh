@@ -11,7 +11,7 @@ cp samplesheet.csv $out/samplesheet_$start_time.csv
 
 # create a rulegraph before executing the actual pipeline
 snakemake -s rules/snakefile.smk --forceall --rulegraph | dot -Tpdf > $out/pb_variants_rulegraph.$start_time.pdf
-snakemake --profile pbs -s rules/snakefile.smk
+snakemake --profile pbs_pacbio -s rules/snakefile.smk
 # after the run a report is created with task runtime and more info
 snakemake -s rules/snakefile.smk --report $out/pb_variants_report.$start_time.html
 

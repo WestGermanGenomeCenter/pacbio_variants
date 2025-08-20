@@ -112,7 +112,7 @@ rule deepvariant:
         ref=config["reference"]
     resources:
         threads=lambda wildcards, attempt: attempt * 48,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 64 + (attempt * 12)
 
     message:
@@ -140,8 +140,8 @@ rule bcftools_snp:
     log:
         "{output_dir}/logs/bcftools_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        threads=lambda wildcards, attempt: attempt * 12,
+        time_hrs=lambda wildcards, attempt: attempt * 12,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Calling SNPs for {input.bam} using bcftools..."
@@ -170,7 +170,7 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
         "{output_dir}/logs/sawfish_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Calling SVs and CNVs for {input.bam} using sawfish..."
@@ -197,7 +197,7 @@ rule paraphase:
         "{output_dir}/logs/paraphase_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Paralog annotation of {input.bam} ..."
@@ -224,7 +224,7 @@ rule trgt:
         "{output_dir}/logs/trgt_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Tandem repeats genotyping {input.bam} ..."
@@ -250,7 +250,7 @@ rule sniffles:
         "{output_dir}/logs/sniffles_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 32,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Calling structural variants for {input.bam} using Sniffles..."
@@ -262,7 +262,7 @@ rule sniffles:
         """
 
 
-rule hificnv:
+rule hificnv: # todo: use haplotagged .bam file as input instead
     input:
         bam="{output_dir}/bams/{sample}_aligned.bam",
         reference=config["reference"], # must be fasta
@@ -278,7 +278,7 @@ rule hificnv:
         "{output_dir}/logs/hificnv_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 32,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
 
     message:

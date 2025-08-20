@@ -77,17 +77,18 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         reference=config["reference"], # must be fasta
 
     output:
-        phased_vcf="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf"
+        phased_vcf="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf",
+        haplotaged_bam="{output_dir}/variants/whatshap_{sample}/{sample}_haplotaged.bam",
+
     conda:
         "../envs/whatshap.yaml"
     log:
         "{output_dir}/logs/whatshap_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 12,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+        time_hrs=lambda wildcards, attempt: attempt * 12,
+        mem_gb=lambda wildcards, attempt: 24 + (attempt * 12)
     params:
-        haplotaged_bam="{output_dir}/variants/whatshap_{sample}/{sample}_haplotaged.bam",
         sorted="{output_dir}/variants/whatshap_{sample}/{sample}_phased_sorted.vcf.gz",
         folder="{output_dir}/variants/whatshap_{sample}",
         stats_file="{output_dir}/variants/whatshap_{sample}/whatshap_{sample}_stats.out"
@@ -99,7 +100,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         bcftools sort {output} -Oz -o {params.sorted} >> {log} 2>&1
         bcftools index -t  {params.sorted} >> {log} 2>&1
         mkdir -p {params.folder} >> {log} 2>&1
-        whatshap haplotag {params.sorted} {input.bam} --output {params.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
+        whatshap haplotag {params.sorted} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
         whatshap stats {output.phased_vcf} > {params.stats_file} 2>{log}
         """
 
@@ -110,16 +111,19 @@ rule longphase: # phases snps, svs and more
         svs="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz",
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
-        vcf_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf"
+        vcf_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf",
+        svs_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
+        long_hap_bam="{output_dir}/variants/longphase_{sample}/{sample}_aligned_haplotaged.bam",
     conda:
         "../envs/longphase.yaml"
     log:
         "{output_dir}/logs/longphase_{sample}.log"
     params:
-        prefix="{output_dir}/variants/longphase_{sample}/{sample}_phased"
+        prefix="{output_dir}/variants/longphase_{sample}/{sample}_phased",
+        prefix_bam="{output_dir}/variants/longphase_{sample}/{sample}_aligned_haplotaged",
     resources:
         threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Phasing snps and svs with longphase for {input.bam} ..."
@@ -128,4 +132,5 @@ rule longphase: # phases snps, svs and more
         tabix -f {input.gz_file} 2>{log}
         tabix -f {input.svs} 2>{log}
         longphase phase -s {input.gz_file} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} 2>{log}
+        longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} 2>{log}
         """

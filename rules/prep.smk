@@ -85,58 +85,6 @@ rule map:
         samtools index {output} >> {log} 2>&1
         """
 
-# using .fastq.gz files is also possible, but loses a lot of data included in the .bam files, especially the kinetics!
-#rule map_fq_gz:
-#    input:
-#        bam = "{sample}.fastq.gz" if config["demultiplex"] else "{sample}_demux.bam",
-#        index ="{output_dir}/reference.mmi",
-#    output:
-#        bam ="{output_dir}/bams/{sample}_aligned.bam"
-#    conda:
-#        "../envs/pbmm2.yaml"
-#    log:
-#        "{output_dir}/logs/preprocess_{sample}.log"
-#
-#    resources:
-#        threads=lambda wildcards, attempt: attempt * 96,
-#        time_hrs=lambda wildcards, attempt: attempt * 1,
-#        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
-#
-#    message:
-#        "Aligning reads for {input.bam} ..."
-#    shell:
-#        """
-#        pbmm2 align {input.index} {input.bam} --num-threads {resources.threads} --sort {output} >> {log} 2>&1
-#        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-#        samtools index {output} -@ {resources.threads} >> {log} 2>&1
-#        """
-#
-## using .fastq.gz files is also possible, but loses a lot of data included in the .bam files, especially the kinetics!
-#rule demultiplex_fq_gz:
-#    input:
-#        full_bam="{sample}.fastq.gz"
-#    output:
-#        demux_fastq="{output_dir}/bams/{sample}_demux.bam"
-#    conda:
-#        "../envs/lima.yaml"
-#    params:
-#        barcodes=config["barcodes_lima_fasta"]
-#    log:
-#        "{output_dir}/logs/demultiplex_{sample}.log"
-#    resources:
-#        threads=lambda wildcards, attempt: attempt * 12,
-#        time_hrs=lambda wildcards, attempt: attempt * 1,
-#        mem_gb=lambda wildcards, attempt: 12 + (attempt * 12)
-#
-#    message:
-#        "Demultiplexing  {sample}..."
-#    shell:
-#        """
-#        lima {input.full_bam} {params.barcodes} {output} --num-threads {resources.threads} >> {log} 2>&1
-#        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-#        samtools index {output} -@ {resources.threads} >> {log} 2>&1
-#        """
-
 
 rule mosdepth:
     input:
@@ -179,8 +127,8 @@ rule kraken2:
         "{output_dir}/logs/kraken2_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 8,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 4 + (attempt * 12)
+        time_hrs=lambda wildcards, attempt: attempt * 2,
+        mem_gb=lambda wildcards, attempt: 170 + (attempt * 12)
 
     message:
         "reporting sample species with kraken2  {input.bam}..."

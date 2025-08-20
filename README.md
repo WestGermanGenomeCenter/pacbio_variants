@@ -44,7 +44,7 @@ Only PacBio data for now, only single samples for now
 - mosdepth, multiqc
 - pbmm2 for mapping
 - kraken2 for contamination detection (downsamples massively, needs kraken2 database)
-- .fastq.gz files or .bam (unmapped) as input file
+- .bam (unmapped) as input file
 - demultiplexing of input as option, will not split the files per barcode.
 - for now one .bam per sample
 - NanoCaller for phased snp/sv calls
@@ -65,5 +65,4 @@ Only PacBio data for now, only single samples for now
 - methylation tools (only if .bam is input format)
 - testing cuteSV, svim Clair3, delly 
 - snp /sv annotation: annotsv,
-- longphase for sv,snp,cnv phasing
 
