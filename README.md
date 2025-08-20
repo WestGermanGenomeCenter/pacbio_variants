@@ -51,7 +51,7 @@ Only PacBio data for now, only single samples for now
 
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
-- cp/mv/ln your unmapped .bam or .fastq file into the root folder of this directory
+- cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/.)
 - edit samplesheet.csv with your filename 
     - one sample per line, do not delete the header line
 - edit config.yaml to your liking/ folder structure
@@ -65,4 +65,4 @@ Only PacBio data for now, only single samples for now
 - methylation tools (only if .bam is input format)
 - testing cuteSV, svim Clair3, delly 
 - snp /sv annotation: annotsv,
-
+- ONT input data, maybe (depends on requests)

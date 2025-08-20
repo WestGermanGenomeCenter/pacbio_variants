@@ -6,6 +6,6 @@ channels:    # apparently there is a bcftools error if installed via conda throu
 #  - http://conda.repo.test.hhu.de/bioconda
 #  - http://conda.repo.test.hhu.de/main
 dependencies:
-#  - bcftools=1.22 # installation brings problems, but as apt installation it works
+  - bcftools=1.22 # installation brings problems, but as apt installation it works
   - gsl
   - tabix=1.11

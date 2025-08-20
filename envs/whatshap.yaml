@@ -4,4 +4,5 @@ channels:
   - conda-forge
 dependencies:
   - whatshap=2.8
+  - tabix=1.11
   - bcftools=1.22

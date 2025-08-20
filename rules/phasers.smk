@@ -92,15 +92,16 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         sorted="{output_dir}/variants/whatshap_{sample}/{sample}_phased_sorted.vcf.gz",
         folder="{output_dir}/variants/whatshap_{sample}",
         stats_file="{output_dir}/variants/whatshap_{sample}/whatshap_{sample}_stats.out"
+        packed="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz",
     message:
         "Phasing haplotypes for {input.bam}..."
     shell:
         """
-        whatshap phase --output {output} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups >> {log} 2>&1
-        bcftools sort {output} -Oz -o {params.sorted} >> {log} 2>&1
-        bcftools index -t  {params.sorted} >> {log} 2>&1
-        mkdir -p {params.folder} >> {log} 2>&1
-        whatshap haplotag {params.sorted} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
+        whatshap phase --output {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups >> {log} 2>&1
+        # avoiding bcftools:
+        bgzip {output.phased.vcf} 2>{log}
+        tabix -f {params.packed} 2>{log}
+        whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
         whatshap stats {output.phased_vcf} > {params.stats_file} 2>{log}
         """
 
