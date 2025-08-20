@@ -27,7 +27,7 @@ def get_mqc_files():
 
     all.extend(expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_kraken2"]:
         all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -51,7 +51,7 @@ def get_output_files():
 
     all.extend(expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_kraken2"]:
         all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -159,10 +159,11 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
         #stats="{output_dir}/variants/sawfish_{sample}/run.stats.json", # might now be missing
-        phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz" 
+        phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz" 
     params:
         output_dir="{output_dir}/variants/sawfish_{sample}",
-        call_output="{output_dir}/variants/sawfish_phased_{sample}"
+        call_output="{output_dir}/variants/sawfish_phased_{sample}",
+        file_to_rename="{output_dir}/variants/sawfish_phased_{sample}/genotyped.sv.vcf.gz" 
     conda:
         "../envs/sawfish.yaml"
     log:
@@ -178,6 +179,7 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
         sawfish discover --threads {resources.threads} --bam {input.bam} --ref {input.reference} --clobber --output-dir {params.output_dir} >> {log} 2>&1
         sawfish joint-call --threads {resources.threads} --sample {params.output_dir} --output-dir {params.call_output} >> {log} 2>&1
         rm -rf {params.output_dir} >> {log} 2>&1 # no need to store in-between files
+        mv {params.file_to_rename} {output} >> {log} 2>&1
         """    
 
 rule paraphase:

@@ -90,7 +90,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         haplotaged_bam="{output_dir}/variants/whatshap_{sample}/{sample}_haplotaged.bam",
         sorted="{output_dir}/variants/whatshap_{sample}/{sample}_phased_sorted.vcf.gz",
         folder="{output_dir}/variants/whatshap_{sample}",
-        stats_file="{output_dir}/variants/whatshap_{sample}_stats.out"
+        stats_file="{output_dir}/variants/whatshap_{sample}/whatshap_{sample}_stats.out"
     message:
         "Phasing haplotypes for {input.bam}..."
     shell:
