@@ -77,7 +77,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         reference=config["reference"], # must be fasta
 
     output:
-        phased_vcf="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf",
+        phased_vcf="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz",
         haplotaged_bam="{output_dir}/variants/whatshap_{sample}/{sample}_haplotaged.bam",
 
     conda:
@@ -87,7 +87,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
     resources:
         threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 12,
-        mem_gb=lambda wildcards, attempt: 24 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 52 + (attempt * 12)
     params:
         sorted="{output_dir}/variants/whatshap_{sample}/{sample}_phased_sorted.vcf.gz",
         folder="{output_dir}/variants/whatshap_{sample}",
@@ -97,11 +97,10 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         "Phasing haplotypes for {input.bam}..."
     shell:
         """
-        whatshap phase --output {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups >> {log} 2>&1
-        bgzip {output.phased_vcf} 2>{log}
-        tabix -f {params.packed} 2>{log}
-        whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
-        whatshap stats {output.phased_vcf} > {params.stats_file} 2>{log}
+        whatshap phase -o {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups  2>{log}
+        tabix -f {output.phased_vcf} 2>{log}
+        whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups 2>{log}
+        whatshap stats {params.packed} > {params.stats_file} 2>{log}
         """
 
 rule longphase: # phases snps, svs and more

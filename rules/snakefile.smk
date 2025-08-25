@@ -34,7 +34,7 @@ def get_mqc_files():
 
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
-    all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
@@ -59,7 +59,7 @@ def get_output_files():
     all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
-    all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
@@ -112,9 +112,9 @@ rule deepvariant:
         ref=config["reference"],
         checkpoint_dir=config["deepvariant_checkpoint_dir"],
     resources:
-        threads=lambda wildcards, attempt: attempt * 12,
+        threads=lambda wildcards, attempt: attempt * 20,
         time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 64 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
 
     message:
         "Calling short variants for {input.bam} using DeepVariant..."
