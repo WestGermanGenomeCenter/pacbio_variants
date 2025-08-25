@@ -62,7 +62,7 @@ rule demultiplex:
 #
 rule map:
     input:
-        bam = "{sample}.bam" if config["demultiplex"] else "{sample}_demux.bam",
+        bam = "{sample}.bam" if not config["demultiplex"] else "{sample}_demux.bam",
         index ="{output_dir}/reference.mmi",
     output:
         bam ="{output_dir}/bams/{sample}_aligned.bam"
@@ -72,7 +72,7 @@ rule map:
         "{output_dir}/logs/preprocess_{sample}.log"
 
     resources:
-        threads=lambda wildcards, attempt: attempt * 96,
+        threads=lambda wildcards, attempt: attempt * 24,
         time_hrs=lambda wildcards, attempt: attempt * 1,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
 
@@ -127,7 +127,7 @@ rule kraken2:
         "{output_dir}/logs/kraken2_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 8,
-        time_hrs=lambda wildcards, attempt: attempt * 2,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
         mem_gb=lambda wildcards, attempt: 170 + (attempt * 12)
 
     message:

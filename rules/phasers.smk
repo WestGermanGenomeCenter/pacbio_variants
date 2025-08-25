@@ -98,7 +98,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
     shell:
         """
         whatshap phase --output {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups >> {log} 2>&1
-        bgzip {output.phased.vcf} 2>{log}
+        bgzip {output.phased_vcf} 2>{log}
         tabix -f {params.packed} 2>{log}
         whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
         whatshap stats {output.phased_vcf} > {params.stats_file} 2>{log}

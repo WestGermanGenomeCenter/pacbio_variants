@@ -1,6 +1,6 @@
 reference: "/mnt/data/pipelines/pb_variants/input/reference.fasta"
 output_dir: "results2" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
-demultiplex: True  # Set to true to enable demultiplexing
+demultiplex: False  # Set to true to enable demultiplexing
 merge: true        # Set to true to enable merging of input files
 use_deepvariant: False # default = False, uses bcftools instead. deepvariant only works on the HPC for now
 use_kraken2: True
@@ -11,3 +11,4 @@ barcodes_lima_fasta: "/mnt/data/pipelines/pb_variants/input/pacbio_barcodes.fast
 sif_image_deepvariant: "path/to/deepvariant.sif" # get this by doing: singularity pull docker://google/deepvariant:latest
 bcftools_min_q_filter: "20"
 repeats_file: "data/repeat_catalog_v1.hg38.1_to_1000bp_motifs.TRGT.bed"
+deepvariant_checkpoint_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_pacbio_190_model"

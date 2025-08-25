@@ -109,9 +109,10 @@ rule deepvariant:
     params:
         intermediate_dir="{output_dir}/bams/{sample}_deepvariant_workdir",
         sif_dir=config["sif_image_deepvariant"],
-        ref=config["reference"]
+        ref=config["reference"],
+        checkpoint_dir=config["deepvariant_checkpoint_dir"],
     resources:
-        threads=lambda wildcards, attempt: attempt * 48,
+        threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 64 + (attempt * 12)
 
@@ -120,8 +121,8 @@ rule deepvariant:
     shell:
         """
         # only for hpc 
-        module load deepvariant 2>{log}
-        deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} ---vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
+        module load deepvariant/1.9.0 2>{log}
+        run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
         """
 
 rule bcftools_snp:
