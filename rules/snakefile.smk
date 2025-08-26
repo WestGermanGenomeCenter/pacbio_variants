@@ -35,6 +35,7 @@ def get_mqc_files():
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
@@ -64,6 +65,7 @@ def get_output_files():
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
     all.extend(expand("{output_dir}/multiqc_report.html", output_dir=config["output_dir"])) # this line is the only difference to multiqc input, for now
+    all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     return all
 
@@ -152,6 +154,36 @@ rule bcftools_snp:
         bcftools call -mv --threads {resources.threads} -Oz -o {output.vcf_bcf} {params.in_between_file} >> {log} 2>&1
         bcftools view {output.vcf_bcf} -i 'QUAL>={params.min_qual_filter}' --threads {resources.threads} -Oz -o {output.gz_file} --write-index >> {log} 2>&1
         """    
+
+
+# todo: mitorsaw: https://github.com/PacificBiosciences/mitorsaw
+
+
+rule mitorsaw: # mitochondrial variants, only hg38 compatible
+    input:
+        reference=config["reference"], # must be fasta
+        bam="{output_dir}/bams/{sample}_aligned.bam"
+    output:
+        mit_vcf="{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz"
+    conda:
+        "../envs/mitorsaw.yaml"
+    params:
+        stats_json="{output_dir}/variants/mitorsaw_{sample}/{sample}_hap_stats.json"
+    log:
+        "{output_dir}/logs/mitorsaw_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 24,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
+        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+    message:
+        "Mitochondrial variant detection for {input.bam} using mitorsaw..."
+    shell:
+        """
+        mitorsaw haplotype --reference {input.reference} --bam {input.bam} --output-vcf {output.mit_vcf} --output-hap-stats {params.stats_json} --output-debug {log}
+        tabix -f {output.mit_vcf} 2>{log}
+        """    
+
+
 
 
 rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing information 

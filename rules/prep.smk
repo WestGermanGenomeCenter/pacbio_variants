@@ -62,7 +62,7 @@ rule demultiplex:
 #
 rule map:
     input:
-        bam = "{sample}.bam" if not config["demultiplex"] else "{sample}_demux.bam",
+        bam = "{sample}.bam" if not config["demultiplex"] else "{output_dir}/bams/{sample}_demux.bam",
         index ="{output_dir}/reference.mmi",
     output:
         bam ="{output_dir}/bams/{sample}_aligned.bam"
@@ -113,7 +113,7 @@ rule mosdepth:
 
 rule kraken2:
     input:
-        bam = "{sample}.bam" if config["demultiplex"] else "{sample}_demux.bam",
+        bam = "{sample}.bam" if not config["demultiplex"] else "{output_dir}/bams/{sample}_demux.bam",
     output:
         kraken2_report="{output_dir}/kraken2/{sample}_kraken2.report",
         kraken2_outfile=temp("{output_dir}/kraken2/{sample}_kraken2.kraken2")

@@ -1,0 +1,7 @@
+name: mitorsaw
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - mitorsaw=0.2.3
+  - tabix=1.11
