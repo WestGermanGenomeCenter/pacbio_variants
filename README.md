@@ -39,15 +39,15 @@ Only PacBio data for now, only single samples for now
 - paraphase 
 - trgt
 - hificnv 
+- mitorsaw (just hg38)
 - sniffles for sv calls that get phased with longphase
 - sawfish for svs and cnvs (results phased by sawfish)
 - mosdepth, multiqc
 - pbmm2 for mapping
 - kraken2 for contamination detection (downsamples massively, needs kraken2 database)
-- .bam (unmapped) as input file
 - demultiplexing of input as option, will not split the files per barcode.
 - for now one .bam per sample
-- NanoCaller for phased snp/sv calls
+- NanoCaller for phased snp/indel calls
 
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
@@ -66,3 +66,4 @@ Only PacBio data for now, only single samples for now
 - testing cuteSV, svim Clair3, delly 
 - snp /sv annotation: annotsv,
 - ONT input data, maybe (depends on requests)
+- de novo assembly, maybe

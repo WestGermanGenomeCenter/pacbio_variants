@@ -35,7 +35,9 @@ def get_mqc_files():
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    if config["use_mitosaw"]:
+        all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
@@ -57,6 +59,12 @@ def get_output_files():
     if config["use_kraken2"]:
         all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
+
+    if config["use_mitosaw"]:
+        all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+
     all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
@@ -65,7 +73,8 @@ def get_output_files():
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
     all.extend(expand("{output_dir}/multiqc_report.html", output_dir=config["output_dir"])) # this line is the only difference to multiqc input, for now
-    all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
 
     return all
 
@@ -168,19 +177,20 @@ rule mitorsaw: # mitochondrial variants, only hg38 compatible
     conda:
         "../envs/mitorsaw.yaml"
     params:
-        stats_json="{output_dir}/variants/mitorsaw_{sample}/{sample}_hap_stats.json"
+        stats_json="{output_dir}/variants/mitorsaw_{sample}/{sample}_hap_stats.json",
+        out_dir="{output_dir}/variants/mitorsaw_{sample}"
     log:
         "{output_dir}/logs/mitorsaw_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+        threads=lambda wildcards, attempt: attempt * 2,
+        time_hrs=lambda wildcards, attempt: attempt * 3,
+        mem_gb=lambda wildcards, attempt: 12 + (attempt * 12)
     message:
         "Mitochondrial variant detection for {input.bam} using mitorsaw..."
     shell:
         """
-        mitorsaw haplotype --reference {input.reference} --bam {input.bam} --output-vcf {output.mit_vcf} --output-hap-stats {params.stats_json} --output-debug {log}
-        tabix -f {output.mit_vcf} 2>{log}
+        mitorsaw haplotype --reference {input.reference} --bam {input.bam} --output-vcf {output.mit_vcf} --output-hap-stats {params.stats_json} --output-debug {params.out_dir}
+        # tabix -f {output.mit_vcf} 2>{log}
         """    
 
 

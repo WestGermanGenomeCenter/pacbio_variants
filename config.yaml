@@ -4,6 +4,7 @@ demultiplex: False  # Set to true to enable demultiplexing
 merge: true        # Set to true to enable merging of input files
 use_deepvariant: False # default = False, uses bcftools instead. deepvariant only works on the HPC for now
 use_kraken2: True
+use_mitosaw: True # Mitochondrial variations, only hg38 supported
 kraken2_db_folder: "/mnt/data/pipelines/bclconvert_pipeline/supporting_data/databases/kraken2/kraken_db_plus"
 #snp_annotation_file: "path/to/snp_annotation.gff"  # Path to SNP annotation file
 #sv_annotation_file: "path/to/sv_annotation.gff"    # Path to SV annotation file

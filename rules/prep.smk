@@ -74,7 +74,10 @@ rule map:
     resources:
         threads=lambda wildcards, attempt: attempt * 24,
         time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
+    params:
+        picard_tmp="{output_dir}/bams/",
+        bai="{output_dir}/bams/{sample}_aligned.bam.bai"
 
     message:
         "Aligning reads for {input.bam} ..."
@@ -82,7 +85,8 @@ rule map:
         """
         pbmm2 align {input.index} {input.bam} --num-threads {resources.threads} --sort {output} >> {log} 2>&1
         pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-        samtools index {output} >> {log} 2>&1
+        picard BuildBamIndex I={output} TMP_DIR={params.picard_tmp} O={params.bai} >> {log} 2>&1
+        # samtools index {output} -@ {resources.threads} >> {log} 2>&1
         """
 
 
@@ -131,7 +135,7 @@ rule kraken2:
         mem_gb=lambda wildcards, attempt: 170 + (attempt * 12)
 
     message:
-        "reporting sample species with kraken2  {input.bam}..."
+        "reporting sample species with kraken2 for {input.bam}..."
     shell:
         """
         samtools view -s 0.01 -b {input.bam} -@ {resources.threads} >{params.subsetted_bam} 2>{log}
