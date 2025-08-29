@@ -1,0 +1,9 @@
+name: smk9
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - snakemake=9.9.0
+  - snakemake-executor-plugin-cluster-generic
+  - snakemake-interface-executor-plugins
+  - snakemake-interface-common=1.21.0

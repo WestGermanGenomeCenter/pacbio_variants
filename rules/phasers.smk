@@ -30,7 +30,7 @@ rule hiphase: # phases snps, svs and more but is not compatible with eiter bcfto
     log:
         "{output_dir}/logs/hiphase_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
+        threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 1,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
@@ -59,8 +59,8 @@ rule nanocaller: # output snps are already haplotaged
     log:
         "{output_dir}/logs/nanocaller_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
+        threads=lambda wildcards, attempt: attempt * 12,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Calling SNPs and SVs for {input.bam} using NanoCaller..."
@@ -121,8 +121,8 @@ rule longphase: # phases snps, svs and more
         prefix="{output_dir}/variants/longphase_{sample}/{sample}_phased",
         prefix_bam="{output_dir}/variants/longphase_{sample}/{sample}_aligned_haplotaged",
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
-        time_hrs=lambda wildcards, attempt: attempt * 2,
+        threads=lambda wildcards, attempt: attempt * 12,
+        time_hrs=lambda wildcards, attempt: attempt * 3,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Phasing snps and svs with longphase for {input.bam} ..."

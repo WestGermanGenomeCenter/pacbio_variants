@@ -9,7 +9,7 @@ kraken2_db_folder: "/mnt/data/pipelines/bclconvert_pipeline/supporting_data/data
 #snp_annotation_file: "path/to/snp_annotation.gff"  # Path to SNP annotation file
 #sv_annotation_file: "path/to/sv_annotation.gff"    # Path to SV annotation file
 barcodes_lima_fasta: "/mnt/data/pipelines/pb_variants/input/pacbio_barcodes.fasta/lima_barcodes.fasta"
-sif_image_deepvariant: "path/to/deepvariant.sif" # get this by doing: singularity pull docker://google/deepvariant:latest
+sif_image_deepvariant: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_1.9.0.sif" # get this by doing: singularity pull docker://google/deepvariant:latest
 bcftools_min_q_filter: "20"
 repeats_file: "data/repeat_catalog_v1.hg38.1_to_1000bp_motifs.TRGT.bed"
 deepvariant_checkpoint_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_pacbio_190_model"

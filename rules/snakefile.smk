@@ -106,7 +106,40 @@ rule multiqc:
         multiqc {params.dir} --filename {output} --no-data-dir >> {log} 2>&1
         """
 
+# fallback if apptainer does not run on hpc as wanted, the rule below will work
+#rule deepvariant:
+#    input:
+#        bam="{output_dir}/bams/{sample}_aligned.bam"
+#    output:
+#        vcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz",
+#        gvcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.gvcf.gz",
+#    conda:
+#        "../envs/deepvariant.yaml"
+#    log:
+#        "{output_dir}/logs/deepvariant_{sample}.log"
+#    params:
+#        intermediate_dir="{output_dir}/bams/{sample}_deepvariant_workdir",
+#        sif_dir=config["sif_image_deepvariant"],
+#        ref=config["reference"],
+#        checkpoint_dir=config["deepvariant_checkpoint_dir"],
+#    resources:
+#        threads=lambda wildcards, attempt: attempt * 12,
+#        time_hrs=lambda wildcards, attempt: attempt * 4,
+#        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
+#
+#    message:
+#        "Calling short variants for {input.bam} using DeepVariant..."
+#    shell:
+#        """
+#        # only for hpc 
+#        module load deepvariant/1.9.0 2>{log}
+#        run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
+#        """
 
+
+
+
+# new test rule using not snakemakes apptainer function, but still using apptainer
 rule deepvariant:
     input:
         bam="{output_dir}/bams/{sample}_aligned.bam"
@@ -115,6 +148,8 @@ rule deepvariant:
         gvcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.gvcf.gz",
     conda:
         "../envs/deepvariant.yaml"
+    #singularity:
+    #    config["sif_image_deepvariant"]
     log:
         "{output_dir}/logs/deepvariant_{sample}.log"
     params:
@@ -123,8 +158,8 @@ rule deepvariant:
         ref=config["reference"],
         checkpoint_dir=config["deepvariant_checkpoint_dir"],
     resources:
-        threads=lambda wildcards, attempt: attempt * 20,
-        time_hrs=lambda wildcards, attempt: attempt * 2,
+        threads=lambda wildcards, attempt: attempt * 12,
+        time_hrs=lambda wildcards, attempt: attempt * 4,
         mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
 
     message:
@@ -134,7 +169,11 @@ rule deepvariant:
         # only for hpc 
         module load deepvariant/1.9.0 2>{log}
         run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
+        # should work outside of hpc
+        #apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
         """
+
+
 
 rule bcftools_snp:
     input:
@@ -212,7 +251,7 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
     log:
         "{output_dir}/logs/sawfish_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
+        threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
@@ -239,7 +278,7 @@ rule paraphase:
     log:
         "{output_dir}/logs/paraphase_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
+        threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
@@ -266,9 +305,9 @@ rule trgt:
     log:
         "{output_dir}/logs/trgt_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 24,
+        threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 24 + (attempt * 12)
     message:
         "Tandem repeats genotyping {input.bam} ..."
     shell:
@@ -292,14 +331,14 @@ rule sniffles:
     log:
         "{output_dir}/logs/sniffles_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 32,
+        threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Calling structural variants for {input.bam} using Sniffles..."
     shell:
         """
-        sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite >> {log} 2>&1
+        sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite --threads {resources.threads} >> {log} 2>&1
         # python3 -m sniffles2_plot -i {output.vcf} -o {params.plot_out} >> {log} 2>&1
         bgzip -c {output.vcf} > {output.gziped_file} 2>{log}
         """
@@ -320,9 +359,9 @@ rule hificnv: # todo: use haplotagged .bam file as input instead
     log:
         "{output_dir}/logs/hificnv_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 32,
-        time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+        threads=lambda wildcards, attempt: attempt * 12,
+        time_hrs=lambda wildcards, attempt: attempt * 3,
+        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
 
     message:
         "Detecting CNVs in  {input.bam}..."

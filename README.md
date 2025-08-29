@@ -1,32 +1,9 @@
 # pb_variants 
 A snakemake 9 based Pipeline for hifi snp, sv, cnv calling, phasing and more
 
-Only PacBio data for now, only single samples for now
+Only PacBio data for now
 
-
-## why this work is being done:
-- nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
-    - does not run without sudo for us
-    - seems not mature enough
-    - not newest tools included
-    - not all wanted tools included
-
-- pacbios wdl-based workflow: https://github.com/PacificBiosciences/HiFi-somatic-WDL
-    - doesnt run on our hardware
-
-- other, locally developed snakemake-based workflows: (eg: https://github.com/core-unit-bioinformatics/workflow-smk-longread-variant-calling)
-    - not all wanted tools included
-
-- Radboud's Valentine workflow:
-    - not available to us
-    - not all wanted tools included
-
-- smrtlinks internal pipeline:
-    - singularity not working, limited tool options
-    - not all wanted tools included
-
-
-!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!
+__!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 
 ## what this tools aims to deliver:
     - newest and best tools suited for HiFi data (only for now)
@@ -51,6 +28,8 @@ Only PacBio data for now, only single samples for now
 
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
+    - this can also be achieved by running the included setupPipeline_hpc.sh
+        - that script uses conda to create the env smk9 - with snakemake 9 installed already (check file smk9_minimal.txt)
 - cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/.)
 - edit samplesheet.csv with your filename 
     - one sample per line, do not delete the header line
@@ -60,10 +39,59 @@ Only PacBio data for now, only single samples for now
 - bash runPipeline.sh on HPC 
 
 
+
+# DAG
+This DAG was made:
+- with snakemake --rulegraph option
+- demultiplexing disabled through config.yaml setting
+- deepvariant enabled through config.yaml setting
+- kraken enabled through config.yaml setting
+
+![alt text](<Bildschirmfoto vom 2025-08-28 16-36-02.png>)
+
+
+
+
+## output files
+- for each input sample:
+    - mosdepth and kraken (optional) report that get summarized with multiqc
+    - mapped .bam file haplotaged with whatshap and longphase
+    - .vcf(.gz) file for:
+        - snps / indels from deepvariant or bcftools, phased with whatshap and longphase
+        - trgt
+        - paraphase
+        - mitorsaw
+        - hificnv
+        - sawfish sv / cnv 
+        - svs from sniffles phased with longphase
+        - snp / svs / indels from nanocaller
+- snakemake report, rulegraph, copy of samplesheet and config.yaml with timestamp
+
+
 ## roadmap:
 - trio calling : deeptrio, glnexus
 - methylation tools (only if .bam is input format)
 - testing cuteSV, svim Clair3, delly 
 - snp /sv annotation: annotsv,
-- ONT input data, maybe (depends on requests)
-- de novo assembly, maybe
+
+
+## why this work is being done:
+- nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
+    - does not run without sudo for us
+    - seems not mature enough (imho)
+    - not newest tools included
+    - not all wanted tools included
+
+- pacbios wdl-based workflow: https://github.com/PacificBiosciences/HiFi-somatic-WDL
+    - doesnt run on our hardware
+
+- other, locally developed snakemake-based workflows: (eg: https://github.com/core-unit-bioinformatics/workflow-smk-longread-variant-calling)
+    - not all wanted tools included
+
+- Radboud's Valentine workflow:
+    - not available to us
+    - not all wanted tools included
+
+- smrtlinks internal pipeline:
+    - singularity not working, limited tool options
+    - not all wanted tools included
