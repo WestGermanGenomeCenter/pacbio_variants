@@ -91,7 +91,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
     params:
         sorted="{output_dir}/variants/whatshap_{sample}/{sample}_phased_sorted.vcf.gz",
         folder="{output_dir}/variants/whatshap_{sample}",
-        stats_file="{output_dir}/variants/whatshap_{sample}/whatshap_{sample}_stats.out",
+        stats_file="{output_dir}/variants/whatshap_{sample}/whatshap_{sample}_stats.tsv",
         packed="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz",
     message:
         "Phasing haplotypes for {input.bam}..."
@@ -100,7 +100,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         whatshap phase -o {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups  2>{log}
         tabix -f {output.phased_vcf} 2>{log}
         whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups 2>{log}
-        whatshap stats {params.packed} > {params.stats_file} 2>{log}
+        whatshap stats {params.packed} --tsv > {params.stats_file} 2>{log}
         """
 
 rule longphase: # phases snps, svs and more

@@ -37,7 +37,7 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 - make sure you are in an interactive terminal session inside a screen / tmux or similar
 - bash runPipeline_local.sh for local installment on single-server setups, 
 - bash runPipeline.sh on HPC 
-
+- non-hpc users need to edit the command line deepvariant in rules/snakefile.smk: the rule is currently only working on the HPC, not on other hardware. Please adjust.
 
 
 # DAG
@@ -53,6 +53,7 @@ This DAG was made:
 
 
 ## output files
+- the first step of the pipeline is to strip the kinetics data out of the .bam input file, but keep the methylation data. This makes all following processes much faster without any real data loss. 
 - for each input sample:
     - mosdepth and kraken (optional) report that get summarized with multiqc
     - mapped .bam file haplotaged with whatshap and longphase
