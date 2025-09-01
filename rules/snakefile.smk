@@ -166,10 +166,11 @@ rule deepvariant:
         "Calling short variants for {input.bam} using DeepVariant..."
     shell:
         """
-        # only for hpc 
+        # only for hpc: next 2 lines are HILBERT-specific
         module load deepvariant/1.9.0 2>{log}
         run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
-        # should work outside of hpc
+        # should work outside of hpc: use the apptainer line below if outside of HILBERT, comment out the lines above!
+        rm -rf {params.intermediate_dir} 2>>{log}
         #apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
         """
 

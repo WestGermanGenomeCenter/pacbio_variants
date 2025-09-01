@@ -74,17 +74,17 @@ rule map:
     resources:
         threads=lambda wildcards, attempt: 2 + (attempt * 10),
         time_hrs=lambda wildcards, attempt: attempt * 4,
-        mem_gb=lambda wildcards, attempt: 24 + (attempt * 24)
+        mem_gb=lambda wildcards, attempt: 72 + (attempt * 24)
     params:
         picard_tmp="{output_dir}/bams/",
-        bam_no_kinetics="{output_dir}/bams/{sample}_aligned_no_kinetics.bam",
+        bam_no_kinetics="{output_dir}/bams/{sample}_no_kinetics.bam",
         bai="{output_dir}/bams/{sample}_aligned.bam.bai"
 
     message:
         "Aligning reads for {input.bam} ..."
     shell:
         """
-        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} > {log} 2>&1
+        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} >> {log} 2>&1
         pbmm2 align {input.index} {params.bam_no_kinetics} --num-threads {resources.threads} --sort {output} >> {log} 2>&1
         pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
         #picard BuildBamIndex -I {output} -TMP_DIR {params.picard_tmp} -O {params.bai} >> {log} 2>&1
