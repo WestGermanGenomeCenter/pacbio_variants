@@ -85,7 +85,7 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
     log:
         "{output_dir}/logs/whatshap_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 12,
+        threads=lambda wildcards, attempt: 6 + (attempt * 6),
         time_hrs=lambda wildcards, attempt: attempt * 12,
         mem_gb=lambda wildcards, attempt: 52 + (attempt * 12)
     params:
@@ -97,10 +97,10 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         "Phasing haplotypes for {input.bam}..."
     shell:
         """
-        whatshap phase -o {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups  2>{log}
-        tabix -f {output.phased_vcf} 2>{log}
-        whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups 2>{log}
-        whatshap stats {params.packed} --tsv > {params.stats_file} 2>{log}
+        whatshap phase -o {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups  >> {log} 2>&1
+        tabix -f {output.phased_vcf} >> {log} 2>&1
+        whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
+        whatshap stats {params.packed} --tsv={params.stats_file} >> {log} 2>&1
         """
 
 rule longphase: # phases snps, svs and more
@@ -128,8 +128,8 @@ rule longphase: # phases snps, svs and more
         "Phasing snps and svs with longphase for {input.bam} ..."
     shell:
         """
-        tabix -f {input.gz_file} 2>{log}
-        tabix -f {input.svs} 2>{log}
-        longphase phase -s {input.gz_file} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} 2>{log}
-        longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} 2>{log}
+        tabix -f {input.gz_file} >> {log} 2>&1
+        tabix -f {input.svs} >> {log} 2>&1
+        longphase phase -s {input.gz_file} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >> {log} 2>&1
+        longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} >> {log} 2>&1
         """

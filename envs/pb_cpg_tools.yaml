@@ -1,0 +1,7 @@
+name: pb_cpg_tools
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - pb-cpg-tools=3.0.0 
+  - tabix=1.11

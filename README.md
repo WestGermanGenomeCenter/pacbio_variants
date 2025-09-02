@@ -16,6 +16,7 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 - paraphase 
 - trgt
 - hificnv 
+- pb-cpg-tools (uses whatshap phased .bam file)
 - mitorsaw (just hg38)
 - sniffles for sv calls that get phased with longphase
 - sawfish for svs and cnvs (results phased by sawfish)
@@ -37,13 +38,16 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 - make sure you are in an interactive terminal session inside a screen / tmux or similar
 - bash runPipeline_local.sh for local installment on single-server setups, 
 - bash runPipeline.sh on HPC 
-- non-hpc users need to edit the command line deepvariant in rules/snakefile.smk: the rule is currently only working on the HPC, not on other hardware. Please adjust.
+- non-hpc users need to edit the config.yaml and enable deepvariant and disable hpc in the config.yaml:
+use_deepvariant_hpc: True <- only set this to True on HPC HILBERT
+
 
 
 # DAG
 This DAG was made:
 - with snakemake --rulegraph option
 - demultiplexing disabled through config.yaml setting
+- cpg-tools disabled through config.yaml setting
 - deepvariant enabled through config.yaml setting
 - kraken enabled through config.yaml setting
 
@@ -57,6 +61,8 @@ This DAG was made:
 - for each input sample:
     - mosdepth and kraken (optional) report that get summarized with multiqc
     - mapped .bam file haplotaged with whatshap and longphase
+    - the with whatshap phased bam is used for methylation track generation with cpg_tools
+    - bed/bw file for methylation tracks for IGV, should be used together with the whatshap phased output .bam file
     - .vcf(.gz) file for:
         - snps / indels from deepvariant or bcftools, phased with whatshap and longphase
         - trgt
@@ -71,8 +77,6 @@ This DAG was made:
 
 ## roadmap:
 - trio calling : deeptrio, glnexus
-- methylation tools (only if .bam is input format)
-- testing cuteSV, svim Clair3, delly 
 - snp /sv annotation: annotsv,
 
 

@@ -141,7 +141,7 @@ rule kraken2:
         "reporting sample species with kraken2 for {input.bam}..."
     shell:
         """
-        samtools view -s 0.01 -b {input.bam} -@ {resources.threads} >{params.subsetted_bam} 2>{log}
-        samtools fastq {params.subsetted_bam} -@ {resources.threads} >{params.subsetted_fastq} 2>{log}
+        samtools view -s 0.01 -b {input.bam} -@ {resources.threads} >{params.subsetted_bam} >> {log} 2>&1
+        samtools fastq {params.subsetted_bam} -@ {resources.threads} >{params.subsetted_fastq} >> {log} 2>&1
         kraken2 --use-names --db {params.kraken_db_folder} --threads {resources.threads} --confidence 0.05 --report {output.kraken2_report} {params.subsetted_fastq} >{output.kraken2_outfile} 2>{log}
         """

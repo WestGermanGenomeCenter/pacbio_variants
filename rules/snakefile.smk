@@ -15,6 +15,7 @@ output_dir=config["output_dir"]
 
 include:"prep.smk"
 include:"phasers.smk"
+include:"methylation.smk"
 
 # this is the same as the get_output_files except minus the multiqc report
 def get_mqc_files():
@@ -63,6 +64,9 @@ def get_output_files():
     if config["use_mitosaw"]:
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
+    if config["use_cpg_tools"]:
+        #         bed_track="{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz"
+        all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
     all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -81,7 +85,7 @@ def get_output_files():
 rule all:
     input:
         get_output_files()
- 
+
 
 
 rule multiqc:
@@ -106,73 +110,71 @@ rule multiqc:
         multiqc {params.dir} --filename {output} --no-data-dir >> {log} 2>&1
         """
 
-# fallback if apptainer does not run on hpc as wanted, the rule below will work
-#rule deepvariant:
-#    input:
-#        bam="{output_dir}/bams/{sample}_aligned.bam"
-#    output:
-#        vcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz",
-#        gvcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.gvcf.gz",
-#    conda:
-#        "../envs/deepvariant.yaml"
-#    log:
-#        "{output_dir}/logs/deepvariant_{sample}.log"
-#    params:
-#        intermediate_dir="{output_dir}/bams/{sample}_deepvariant_workdir",
-#        sif_dir=config["sif_image_deepvariant"],
-#        ref=config["reference"],
-#        checkpoint_dir=config["deepvariant_checkpoint_dir"],
-#    resources:
-#        threads=lambda wildcards, attempt: attempt * 12,
-#        time_hrs=lambda wildcards, attempt: attempt * 4,
-#        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
-#
-#    message:
-#        "Calling short variants for {input.bam} using DeepVariant..."
-#    shell:
-#        """
-#        # only for hpc 
-#        module load deepvariant/1.9.0 2>{log}
-#        run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
-#        """
+
+
+if not config["use_deepvariant_hpc"]:
+
+    rule deepvariant_singularity:
+
+        input:
+            bam="{output_dir}/bams/{sample}_aligned.bam"
+        output:
+            vcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz",
+            gvcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.gvcf.gz",
+        conda:
+            "../envs/deepvariant.yaml"
+        log:
+            "{output_dir}/logs/deepvariant_{sample}.log"
+        params:
+            intermediate_dir="{output_dir}/bams/{sample}_deepvariant_workdir",
+            sif_dir=config["sif_image_deepvariant"],
+            ref=config["reference"],
+            checkpoint_dir=config["deepvariant_checkpoint_dir"],
+        resources:
+            threads=lambda wildcards, attempt: attempt * 12,
+            time_hrs=lambda wildcards, attempt: attempt * 4,
+            mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
+
+        message:
+            "Calling short variants for {input.bam} using DeepVariant..."
+        shell:
+            """
+            apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
+            rm -rf {params.intermediate_dir} >> {log} 2>&1
+            """
 
 
 
+if config["use_deepvariant_hpc"]:
 
-# new test rule using not snakemakes apptainer function, but still using apptainer
-rule deepvariant:
-    input:
-        bam="{output_dir}/bams/{sample}_aligned.bam"
-    output:
-        vcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz",
-        gvcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.gvcf.gz",
-    conda:
-        "../envs/deepvariant.yaml"
-    #singularity:
-    #    config["sif_image_deepvariant"]
-    log:
-        "{output_dir}/logs/deepvariant_{sample}.log"
-    params:
-        intermediate_dir="{output_dir}/bams/{sample}_deepvariant_workdir",
-        sif_dir=config["sif_image_deepvariant"],
-        ref=config["reference"],
-        checkpoint_dir=config["deepvariant_checkpoint_dir"],
-    resources:
-        threads=lambda wildcards, attempt: attempt * 12,
-        time_hrs=lambda wildcards, attempt: attempt * 4,
-        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
+    rule deepvariant_hpc:
+        input:
+            bam="{output_dir}/bams/{sample}_aligned.bam"
+        output:
+            vcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz",
+            gvcf="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.gvcf.gz",
+        conda:
+            "../envs/deepvariant.yaml"
+        log:
+            "{output_dir}/logs/deepvariant_{sample}.log"
+        params:
+            intermediate_dir="{output_dir}/bams/{sample}_deepvariant_workdir",
+            sif_dir=config["sif_image_deepvariant"],
+            ref=config["reference"],
+            checkpoint_dir=config["deepvariant_checkpoint_dir"],
+        resources:
+            threads=lambda wildcards, attempt: attempt * 12,
+            time_hrs=lambda wildcards, attempt: attempt * 4,
+            mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
 
-    message:
-        "Calling short variants for {input.bam} using DeepVariant..."
-    shell:
-        """
-        # only for hpc: next 2 lines are HILBERT-specific
-        module load deepvariant/1.9.0 2>{log}
-        run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
-        # should work outside of hpc: use the apptainer line below if outside of HILBERT, comment out the lines above!
-        rm -rf {params.intermediate_dir} 2>>{log}
-        #apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
-        """
+        message:
+            "Calling short variants for {input.bam} using DeepVariant (HPC)..."
+        shell:
+            """
+            module load deepvariant/1.9.0 >> {log} 2>&1
+            run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
+            rm -rf {params.intermediate_dir} >> {log} 2>&1
+            """
 
 
 
@@ -229,8 +231,8 @@ rule mitorsaw: # mitochondrial variants, only hg38 compatible
         "Mitochondrial variant detection for {input.bam} using mitorsaw..."
     shell:
         """
-        mitorsaw haplotype --reference {input.reference} --bam {input.bam} --output-vcf {output.mit_vcf} --output-hap-stats {params.stats_json} --output-debug {params.out_dir}
-        # tabix -f {output.mit_vcf} 2>{log}
+        mitorsaw haplotype --reference {input.reference} --bam {input.bam} --output-vcf {output.mit_vcf} --output-hap-stats {params.stats_json} --output-debug {params.out_dir} >> {log} 2>&1
+        # tabix -f {output.mit_vcf} >> {log} 2>&1
         """    
 
 
@@ -341,7 +343,7 @@ rule sniffles:
         """
         sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite --threads {resources.threads} >> {log} 2>&1
         # python3 -m sniffles2_plot -i {output.vcf} -o {params.plot_out} >> {log} 2>&1
-        bgzip -c {output.vcf} > {output.gziped_file} 2>{log}
+        bgzip -c {output.vcf} > {output.gziped_file} >> {log} 2>&1
         """
 
 
