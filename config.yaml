@@ -1,17 +1,19 @@
-reference: "/mnt/data/pipelines/pb_variants/input/reference.fasta"
+reference: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/inputs/reference.fasta"
 output_dir: "results2" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
 demultiplex: False  # Set to true to enable demultiplexing
 merge: true        # Set to true to enable merging of input files
-use_deepvariant: False # default = False, uses bcftools instead. deepvariant only works on the HPC for now
+use_deepvariant: True # default = False, uses bcftools instead. deepvariant only works on the HPC for now
 use_kraken2: True
 use_cpg_tools: True
 use_mitosaw: True # Mitochondrial variations, only hg38 supported
-kraken2_db_folder: "/mnt/data/pipelines/bclconvert_pipeline/supporting_data/databases/kraken2/kraken_db_plus"
-#snp_annotation_file: "path/to/snp_annotation.gff"  # Path to SNP annotation file
-#sv_annotation_file: "path/to/sv_annotation.gff"    # Path to SV annotation file
+kraken2_db_folder: "/gpfs/project/databases/Kraken2-2022-09-28/kraken_db_plus"
+snp_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/small_variants/00-All.vcf"  # Path to SNP annotation file wget ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/00-All.vcf.gz 
+sv_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/gnomad/all_gnomad_4_hg38.vcf"    # Path to SV annotation file, should be gnomad_svs.vcf in best case
+use_sv_annotation: True # only hg38 for now, needs database file
+use_snp_annotation: True 
 use_deepvariant_hpc: True
-barcodes_lima_fasta: "/mnt/data/pipelines/pb_variants/input/pacbio_barcodes.fasta/lima_barcodes.fasta"
+barcodes_lima_fasta: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/input/pacbio_barcodes.fasta"
 sif_image_deepvariant: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_1.9.0.sif" # get this by doing: singularity pull docker://google/deepvariant:latest
 bcftools_min_q_filter: "20"
-repeats_file: "data/repeat_catalog_v1.hg38.1_to_1000bp_motifs.TRGT.bed"
+repeats_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/repeat_catalog_v1.hg38.1_to_1000bp_motifs.TRGT.bed"
 deepvariant_checkpoint_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_pacbio_190_model"

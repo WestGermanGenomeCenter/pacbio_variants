@@ -66,6 +66,7 @@ rule nanocaller: # output snps are already haplotaged
         "Calling SNPs and SVs for {input.bam} using NanoCaller..."
     shell:
         """
+        rm -rf {params.path_out} >> {log} 2>&1
         NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >> {log} 2>&1
         """    
 

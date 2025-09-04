@@ -1,0 +1,9 @@
+name: snpeff
+channels:
+  - bioconda
+  - conda-forge
+dependencies: 
+  - snpeff=5.2 # need to change to 5.3 soon
+  - tabix=1.11
+  - gzip
+  - snpsift=5.2 # 5.3 soon

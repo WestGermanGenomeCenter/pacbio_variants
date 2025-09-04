@@ -39,6 +39,14 @@ def get_mqc_files():
     if config["use_mitosaw"]:
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     
+    if config["use_sv_annotation"]:
+        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+    if config["use_snp_annotation"]:
+        all.extend(expand("{output_dir}/annotated_variants/snps_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
@@ -65,8 +73,16 @@ def get_output_files():
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_cpg_tools"]:
-        #         bed_track="{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz"
         all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+    if config["use_sv_annotation"]:
+        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+    if config["use_snp_annotation"]:
+        all.extend(expand("{output_dir}/annotated_variants/snps_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
 
 
     all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -172,7 +188,7 @@ if config["use_deepvariant_hpc"]:
         shell:
             """
             module load deepvariant/1.9.0 >> {log} 2>&1
-            run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
+            deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
             rm -rf {params.intermediate_dir} >> {log} 2>&1
             """
 

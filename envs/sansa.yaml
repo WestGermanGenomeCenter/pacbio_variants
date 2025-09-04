@@ -1,0 +1,6 @@
+name: sansa
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - sansa=0.2.3
