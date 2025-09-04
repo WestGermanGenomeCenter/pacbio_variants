@@ -16,6 +16,7 @@ output_dir=config["output_dir"]
 include:"prep.smk"
 include:"phasers.smk"
 include:"methylation.smk"
+include:"annotation.smk"
 
 # this is the same as the get_output_files except minus the multiqc report
 def get_mqc_files():
@@ -131,7 +132,6 @@ rule multiqc:
 if not config["use_deepvariant_hpc"]:
 
     rule deepvariant_singularity:
-
         input:
             bam="{output_dir}/bams/{sample}_aligned.bam"
         output:
