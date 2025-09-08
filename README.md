@@ -30,7 +30,7 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
     - this can also be achieved by running the included setupPipeline_hpc.sh
-        - that script uses conda to create the env smk9 - with snakemake 9 installed already (check file smk9_minimal.txt)
+        - that script uses conda to create the env smk9 - with snakemake 9 installed already (check file smk9.yaml)
 - cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/.)
 - edit samplesheet.csv with your filename 
     - one sample per line, do not delete the header line
@@ -51,9 +51,8 @@ This DAG was made:
 - deepvariant enabled through config.yaml setting
 - kraken enabled through config.yaml setting
 
-![alt text](<Bildschirmfoto vom 2025-08-28 16-36-02.png>)
 
-
+![alt text](dag.png)
 
 
 ## output files
@@ -72,12 +71,12 @@ This DAG was made:
         - sawfish sv / cnv 
         - svs from sniffles phased with longphase
         - snp / svs / indels from nanocaller
+    - phased snps and svs get annotated with snpsift and sansa
 - snakemake report, rulegraph, copy of samplesheet and config.yaml with timestamp
 
 
 ## roadmap:
 - trio calling : deeptrio, glnexus
-- snp /sv annotation: annotsv,
 
 
 ## why this work is being done:

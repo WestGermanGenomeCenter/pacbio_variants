@@ -71,6 +71,9 @@ rule nanocaller: # output snps are already haplotaged
         """    
 
 
+
+
+
 rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase is used
     input: 
         vcf= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
@@ -108,7 +111,7 @@ rule longphase: # phases snps, svs and more
     input:
         reference=config["reference"], # must be fasta
         gz_file= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
-        svs="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz",
+        svs="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf",
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
         vcf_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf",
@@ -121,6 +124,7 @@ rule longphase: # phases snps, svs and more
     params:
         prefix="{output_dir}/variants/longphase_{sample}/{sample}_phased",
         prefix_bam="{output_dir}/variants/longphase_{sample}/{sample}_aligned_haplotaged",
+        unpacked_snp="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf",
     resources:
         threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 3,
@@ -129,8 +133,14 @@ rule longphase: # phases snps, svs and more
         "Phasing snps and svs with longphase for {input.bam} ..."
     shell:
         """
-        tabix -f {input.gz_file} >> {log} 2>&1
+        gunzip {input.gz_file}
+        tabix -f {params.unpacked_snp} >> {log} 2>&1
         tabix -f {input.svs} >> {log} 2>&1
-        longphase phase -s {input.gz_file} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >> {log} 2>&1
+        longphase phase -s {params.unpacked_snp} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >> {log} 2>&1
         longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} >> {log} 2>&1
         """
+
+# longphase can also phase mods: longphase modcall \-b alignment.bam \ -r reference.fasta \ -t 8 \ -o modcall
+# longphase phase \-s SNP.vcf \--mod-file modcall.vcf \-b alignment.bam \-r reference.fasta \-t 8 \-o phased_prefix \--ont # or --pb for PacBio Hifi
+# needs apparently lots of ram and not really specified that you can phase snp, svs and mods at the same time, so skipping it for now. 
+# once this is tested well, then this is the second way to get phased modcalls (next to cpgtools from pacbio)

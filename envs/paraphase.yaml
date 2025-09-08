@@ -6,5 +6,5 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - paraphase=3.3.2
+  - paraphase=3.3.4
   - minimap2=2.30

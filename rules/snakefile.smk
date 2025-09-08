@@ -223,9 +223,6 @@ rule bcftools_snp:
         """    
 
 
-# todo: mitorsaw: https://github.com/PacificBiosciences/mitorsaw
-
-
 rule mitorsaw: # mitochondrial variants, only hg38 compatible
     input:
         reference=config["reference"], # must be fasta
