@@ -124,7 +124,7 @@ rule multiqc:
         "{output_dir}/logs/Multiqc.log"
     shell:
         """
-        multiqc {params.dir} --filename {output} --no-data-dir >> {log} 2>&1
+        multiqc {params.dir} --filename {output} --no-data-dir >{log} 2>&1
         """
 
 
@@ -155,8 +155,8 @@ if not config["use_deepvariant_hpc"]:
             "Calling short variants for {input.bam} using DeepVariant..."
         shell:
             """
-            apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
-            rm -rf {params.intermediate_dir} >> {log} 2>&1
+            apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >{log} 2>&1
+            rm -rf {params.intermediate_dir} >{log} 2>&1
             """
 
 
@@ -187,9 +187,9 @@ if config["use_deepvariant_hpc"]:
             "Calling short variants for {input.bam} using DeepVariant (HPC)..."
         shell:
             """
-            module load deepvariant/1.9.0 >> {log} 2>&1
-            deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >> {log} 2>&1
-            rm -rf {params.intermediate_dir} >> {log} 2>&1
+            module load deepvariant/1.9.0 >{log} 2>&1
+            deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >{log} 2>&1
+            rm -rf {params.intermediate_dir} >{log} 2>&1
             """
 
 
@@ -218,7 +218,7 @@ rule nanocaller: # output snps are already haplotaged
         "Calling SNPs and SVs for {input.bam} using NanoCaller..."
     shell:
         """
-        NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >> {log} 2>&1
+        NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >{log} 2>&1
         """    
 
 
@@ -247,9 +247,9 @@ rule bcftools_snp:
         "Calling SNPs for {input.bam} using bcftools..."
     shell:
         """
-        bcftools mpileup -O b -f {input.reference} {input.bam} --threads {resources.threads} -o {params.in_between_file} -Q {params.min_qual_filter} -q {params.min_qual_filter} >> {log} 2>&1
-        bcftools call -mv --threads {resources.threads} -Oz -o {output.vcf_bcf} {params.in_between_file} >> {log} 2>&1
-        bcftools view {output.vcf_bcf} -i 'QUAL>={params.min_qual_filter}' --threads {resources.threads} -Oz -o {output.gz_file} --write-index >> {log} 2>&1
+        bcftools mpileup -O b -f {input.reference} {input.bam} --threads {resources.threads} -o {params.in_between_file} -Q {params.min_qual_filter} -q {params.min_qual_filter} >{log} 2>&1
+        bcftools call -mv --threads {resources.threads} -Oz -o {output.vcf_bcf} {params.in_between_file} >{log} 2>&1
+        bcftools view {output.vcf_bcf} -i 'QUAL>={params.min_qual_filter}' --threads {resources.threads} -Oz -o {output.gz_file} --write-index >{log} 2>&1
         """    
 
 
@@ -274,8 +274,7 @@ rule mitorsaw: # mitochondrial variants, only hg38 compatible
         "Mitochondrial variant detection for {input.bam} using mitorsaw..."
     shell:
         """
-        mitorsaw haplotype --reference {input.reference} --bam {input.bam} --output-vcf {output.mit_vcf} --output-hap-stats {params.stats_json} --output-debug {params.out_dir} >> {log} 2>&1
-        # tabix -f {output.mit_vcf} >> {log} 2>&1
+        mitorsaw haplotype --reference {input.reference} --bam {input.bam} --output-vcf {output.mit_vcf} --output-hap-stats {params.stats_json} --output-debug {params.out_dir} >{log} 2>&1
         """    
 
 
@@ -304,10 +303,10 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
         "Calling SVs and CNVs for {input.bam} using sawfish..."
     shell:
         """
-        sawfish discover --threads {resources.threads} --bam {input.bam} --ref {input.reference} --clobber --output-dir {params.output_dir} >> {log} 2>&1
-        sawfish joint-call --threads {resources.threads} --sample {params.output_dir} --output-dir {params.call_output} >> {log} 2>&1
-        rm -rf {params.output_dir} >> {log} 2>&1 # no need to store in-between files
-        mv {params.file_to_rename} {output} >> {log} 2>&1
+        sawfish discover --threads {resources.threads} --bam {input.bam} --ref {input.reference} --clobber --output-dir {params.output_dir} >{log} 2>&1
+        sawfish joint-call --threads {resources.threads} --sample {params.output_dir} --output-dir {params.call_output} >{log} 2>&1
+        rm -rf {params.output_dir} >{log} 2>&1 # no need to store in-between files
+        mv {params.file_to_rename} {output} >{log} 2>&1
         """    
 
 rule paraphase:
@@ -331,7 +330,7 @@ rule paraphase:
         "Paralog annotation of {input.bam} ..."
     shell:
         """
-        paraphase -b {input.bam} -r {input.reference} -t {resources.threads} -p {params.prefix} -o {params.dir} >> {log} 2>&1 
+        paraphase -b {input.bam} -r {input.reference} -t {resources.threads} -p {params.prefix} -o {params.dir} >{log} 2>&1
         touch {output.done_flag}
         """    
 
@@ -358,7 +357,7 @@ rule trgt:
         "Tandem repeats genotyping {input.bam} ..."
     shell:
         """
-        trgt genotype --genome {input.reference} --reads {input.bam} --repeats {params.repeats_bed} --threads {resources.threads} --output-prefix {params.prefix} >> {log} 2>&1
+        trgt genotype --genome {input.reference} --reads {input.bam} --repeats {params.repeats_bed} --threads {resources.threads} --output-prefix {params.prefix} >{log} 2>&1
         """    
 
 rule sniffles:
@@ -384,9 +383,9 @@ rule sniffles:
         "Calling structural variants for {input.bam} using Sniffles..."
     shell:
         """
-        sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite --threads {resources.threads} >> {log} 2>&1
-        # python3 -m sniffles2_plot -i {output.vcf} -o {params.plot_out} >> {log} 2>&1
-        bgzip -c {output.vcf} > {output.gziped_file} >> {log} 2>&1
+        sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite --threads {resources.threads} >{log} 2>&1
+        # python3 -m sniffles2_plot -i {output.vcf} -o {params.plot_out} >{log} 2>&1
+        bgzip -c {output.vcf} > {output.gziped_file} >{log} 2>&1
         """
 
 
@@ -413,6 +412,6 @@ rule hificnv: # todo: use haplotagged .bam file as input instead
         "Detecting CNVs in  {input.bam}..."
     shell:
         """
-        hificnv --bam {input.bam} --ref {input.reference} --threads {resources.threads} --output-prefix {params.prefix} >> {log} 2>&1
+        hificnv --bam {input.bam} --ref {input.reference} --threads {resources.threads} --output-prefix {params.prefix} >{log} 2>&1
         touch {output}
         """

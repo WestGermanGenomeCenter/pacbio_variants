@@ -39,7 +39,7 @@ rule hiphase: # phases snps, svs and more but is not compatible with eiter bcfto
         """
         tabix -f {input.gz_file} 2>{log}
         tabix -f {input.svs} 2>{log}
-        hiphase --bam {input.bam} --reference {input.reference} --threads {resources.threads} --vcf {input.gz_file} --output-vcf {output.vcf_phased}  --ignore-read-groups --min-vcf-qual 40 >> {log} 2>&1
+        hiphase --bam {input.bam} --reference {input.reference} --threads {resources.threads} --vcf {input.gz_file} --output-vcf {output.vcf_phased}  --ignore-read-groups --min-vcf-qual 40 >{log} 2>&1
         """    
 
 
@@ -71,10 +71,10 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         "Phasing haplotypes for {input.bam}..."
     shell:
         """
-        whatshap phase -o {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups  >> {log} 2>&1
-        tabix -f {output.phased_vcf} >> {log} 2>&1
-        whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >> {log} 2>&1
-        whatshap stats {params.packed} --tsv={params.stats_file} >> {log} 2>&1
+        whatshap phase -o {output.phased_vcf} --reference {input.reference} {input.vcf} {input.bam} --ignore-read-groups  >{log} 2>&1
+        tabix -f {output.phased_vcf} >{log} 2>&1
+        whatshap haplotag {params.packed} {input.bam} --output {output.haplotaged_bam} --reference {input.reference} --output-threads {resources.threads} --ignore-read-groups >{log} 2>&1
+        whatshap stats {params.packed} --tsv={params.stats_file} >{log} 2>&1
         """
 
 rule longphase: # phases snps, svs and more
@@ -104,8 +104,8 @@ rule longphase: # phases snps, svs and more
     shell:
         """
         gunzip -f {input.gz_file} -c >{params.unpacked_snp} 2>{log}
-        longphase phase -s {params.unpacked_snp} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >> {log} 2>&1
-        longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} >> {log} 2>&1
+        longphase phase -s {params.unpacked_snp} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >{log} 2>&1
+        longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} >{log} 2>&1
         """
 
 # longphase can also phase mods: longphase modcall \-b alignment.bam \ -r reference.fasta \ -t 8 \ -o modcall

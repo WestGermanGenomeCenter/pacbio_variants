@@ -55,9 +55,9 @@ rule demultiplex:
         "Demultiplexing  {sample}..."
     shell:
         """
-        lima {input.full_bam} {params.barcodes} {output} --num-threads {resources.threads} >> {log} 2>&1
-        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-        samtools index {output} -@ {resources.threads} >> {log} 2>&1
+        lima {input.full_bam} {params.barcodes} {output} --num-threads {resources.threads} >{log} 2>&1
+        pbindex {output} --num-threads {resources.threads} >{log} 2>&1
+        samtools index {output} -@ {resources.threads} >{log} 2>&1
         """
 #
 rule map:
@@ -85,11 +85,11 @@ rule map:
         "Aligning reads for {input.bam} ..."
     shell:
         """
-        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} >> {log} 2>&1
-        pbmm2 align {input.index} {params.bam_no_kinetics} --num-threads {resources.threads} --sort {output.bam} >> {log} 2>&1
-        pbindex {output.bam} --num-threads {resources.threads} >> {log} 2>&1
-        #picard BuildBamIndex -I {output.bam} -TMP_DIR {params.picard_tmp} -O {params.bai} >> {log} 2>&1
-        samtools index {output.bam} -@ {resources.threads} >> {log} 2>&1
+        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} >{log} 2>&1
+        pbmm2 align {input.index} {params.bam_no_kinetics} --num-threads {resources.threads} --sort {output.bam} >{log} 2>&1
+        pbindex {output.bam} --num-threads {resources.threads} >{log} 2>&1
+        #picard BuildBamIndex -I {output.bam} -TMP_DIR {params.picard_tmp} -O {params.bai} >{log} 2>&1
+        samtools index {output.bam} -@ {resources.threads} >{log} 2>&1
         """
 # BuildBamIndex -I results/bams/little_bigger_subset_aligned.bam -TMP_DIR results/bams/ -O results/bams/little_bigger_subset_aligned.bam.bai
 # MAX_RECORDS_IN_RAM 1000000
@@ -114,7 +114,7 @@ rule mosdepth:
         "reporting mapping depth of  {input.bam}..."
     shell:
         """
-        mosdepth --threads {resources.threads} {params.prefix} {input.bam} >> {log} 2>&1
+        mosdepth --threads {resources.threads} {params.prefix} {input.bam} >{log} 2>&1
         """
 
 

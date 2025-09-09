@@ -33,5 +33,5 @@ rule pb_cpg_tools: # only able to haplotype snps, cannot use svs. for this longp
     shell:
         """
         tabix -f {input.haplotaged_bam} 2>{log}
-        aligned_bam_to_cpg_scores --bam {input.haplotaged_bam} --output-prefix {params.prefix} --threads {resources.threads} 2>{log}
+        aligned_bam_to_cpg_scores --bam {input.haplotaged_bam} --output-prefix {params.prefix} --threads {resources.threads} >{log} 2>&1
         """

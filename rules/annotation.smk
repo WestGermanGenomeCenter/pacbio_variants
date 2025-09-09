@@ -35,8 +35,8 @@ rule sansa: # annotate svs
         "Annotating the svs from longphase (sniffles) and sawfish with sansa: {input.svs_phased} and {input.phased_cnv_and_svs}..."
     shell:
         """
-        sansa annotate -d {params.annotation_sv_file} {input.svs_phased} -a {output.annotated_bcf} -o {output.tsv} >> {log} 2>&1
-        sansa annotate -d {params.annotation_sv_file} {input.phased_cnv_and_svs} -a {output.sawfish_bcf} -o {output.sawfish_tsv} >> {log} 2>&1
+        sansa annotate -d {params.annotation_sv_file} {input.svs_phased} -a {output.annotated_bcf} -o {output.tsv} >{log} 2>&1
+        sansa annotate -d {params.annotation_sv_file} {input.phased_cnv_and_svs} -a {output.sawfish_bcf} -o {output.sawfish_tsv} >{log} 2>&1
         """
 
 
@@ -64,7 +64,7 @@ rule snpsift: # snps
     shell:
         """
         SnpSift annotate {params.annotation_snp_file} {input.vcf_phased_longp} >{output.longp_snp} 2>{log}
-        SnpSift annotate {params.annotation_snp_file} {input.phased_vcf_whatsh} >{whatsh_snp} 2>{log}
+        SnpSift annotate {params.annotation_snp_file} {input.phased_vcf_whatsh} >{output.whatsh_snp} 2>{log}
         SnpSift annotate {params.annotation_snp_file} {input.vcf_nano} >{output.nanoc_smp} 2>{log}
         """
 
