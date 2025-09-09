@@ -194,6 +194,36 @@ if config["use_deepvariant_hpc"]:
 
 
 
+
+
+
+rule nanocaller: # output snps are already haplotaged
+    input:
+        reference=config["reference"], # must be fasta
+        bam="{output_dir}/bams/{sample}_aligned.bam"
+    output:
+        vcf_nano="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz"
+    params:
+        path_out="{output_dir}/variants/nanocaller_{sample}/",
+        prefix="{sample}_nanocaller",
+    conda:
+        "../envs/nanocaller.yaml"
+    log:
+        "{output_dir}/logs/nanocaller_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 12,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
+        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+    message:
+        "Calling SNPs and SVs for {input.bam} using NanoCaller..."
+    shell:
+        """
+        NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >> {log} 2>&1
+        """    
+
+
+
+
 rule bcftools_snp:
     input:
         reference=config["reference"], # must be fasta

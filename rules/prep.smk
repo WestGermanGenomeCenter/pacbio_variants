@@ -65,7 +65,8 @@ rule map:
         bam = "{sample}.bam" if not config["demultiplex"] else "{output_dir}/bams/{sample}_demux.bam",
         index ="{output_dir}/reference.mmi",
     output:
-        bam ="{output_dir}/bams/{sample}_aligned.bam"
+        bam ="{output_dir}/bams/{sample}_aligned.bam",
+        bai ="{output_dir}/bams/{sample}_aligned.bam.bai",
     conda:
         "../envs/pbmm2.yaml"
     log:
@@ -85,10 +86,10 @@ rule map:
     shell:
         """
         samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} >> {log} 2>&1
-        pbmm2 align {input.index} {params.bam_no_kinetics} --num-threads {resources.threads} --sort {output} >> {log} 2>&1
-        pbindex {output} --num-threads {resources.threads} >> {log} 2>&1
-        #picard BuildBamIndex -I {output} -TMP_DIR {params.picard_tmp} -O {params.bai} >> {log} 2>&1
-        samtools index {output} -@ {resources.threads} >> {log} 2>&1
+        pbmm2 align {input.index} {params.bam_no_kinetics} --num-threads {resources.threads} --sort {output.bam} >> {log} 2>&1
+        pbindex {output.bam} --num-threads {resources.threads} >> {log} 2>&1
+        #picard BuildBamIndex -I {output.bam} -TMP_DIR {params.picard_tmp} -O {params.bai} >> {log} 2>&1
+        samtools index {output.bam} -@ {resources.threads} >> {log} 2>&1
         """
 # BuildBamIndex -I results/bams/little_bigger_subset_aligned.bam -TMP_DIR results/bams/ -O results/bams/little_bigger_subset_aligned.bam.bai
 # MAX_RECORDS_IN_RAM 1000000
@@ -135,7 +136,7 @@ rule kraken2:
     resources:
         threads=lambda wildcards, attempt: attempt * 8,
         time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 170 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 170 + (attempt * 16)
 
     message:
         "reporting sample species with kraken2 for {input.bam}..."

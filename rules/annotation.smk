@@ -63,8 +63,10 @@ rule snpsift: # snps
         "Annotating the snps with snpsift: {input.vcf_phased_longp}, {input.phased_vcf_whatsh} and {input.vcf_nano}..."
     shell:
         """
-        SnpSift annotate {params.annotaion_snp_file} {input.vcf_phased_longp} >{output.longp_snp} 2>{log}
-        SnpSift annotate {params.annotaion_snp_file} {input.phased_vcf_whatsh} >{whatsh_snp} 2>{log}
-        SnpSift annotate {params.annotaion_snp_file} {input.vcf_nano} >{output.nanoc_smp} 2>{log}
+        SnpSift annotate {params.annotation_snp_file} {input.vcf_phased_longp} >{output.longp_snp} 2>{log}
+        SnpSift annotate {params.annotation_snp_file} {input.phased_vcf_whatsh} >{whatsh_snp} 2>{log}
+        SnpSift annotate {params.annotation_snp_file} {input.vcf_nano} >{output.nanoc_smp} 2>{log}
         """
 
+
+# maybe future sv annotation: https://strvctvre.berkeley.edu/

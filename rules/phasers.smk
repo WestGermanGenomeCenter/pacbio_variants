@@ -44,36 +44,6 @@ rule hiphase: # phases snps, svs and more but is not compatible with eiter bcfto
 
 
 
-
-rule nanocaller: # output snps are already haplotaged
-    input:
-        reference=config["reference"], # must be fasta
-        bam="{output_dir}/bams/{sample}_aligned.bam"
-    output:
-        vcf_nano="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz"
-    params:
-        path_out="{output_dir}/variants/nanocaller_{sample}/",
-        prefix="{sample}_nanocaller"
-    conda:
-        "../envs/nanocaller.yaml"
-    log:
-        "{output_dir}/logs/nanocaller_{sample}.log"
-    resources:
-        threads=lambda wildcards, attempt: attempt * 12,
-        time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
-    message:
-        "Calling SNPs and SVs for {input.bam} using NanoCaller..."
-    shell:
-        """
-        rm -rf {params.path_out} >> {log} 2>&1
-        NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >> {log} 2>&1
-        """    
-
-
-
-
-
 rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase is used
     input: 
         vcf= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
@@ -133,9 +103,7 @@ rule longphase: # phases snps, svs and more
         "Phasing snps and svs with longphase for {input.bam} ..."
     shell:
         """
-        gunzip {input.gz_file}
-        tabix -f {params.unpacked_snp} >> {log} 2>&1
-        tabix -f {input.svs} >> {log} 2>&1
+        gunzip -f {input.gz_file} -c >{params.unpacked_snp} 2>{log}
         longphase phase -s {params.unpacked_snp} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >> {log} 2>&1
         longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} >> {log} 2>&1
         """
