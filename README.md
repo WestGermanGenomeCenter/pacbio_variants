@@ -26,6 +26,7 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 - demultiplexing of input as option, will not split the files per barcode.
 - for now one .bam per sample
 - NanoCaller for phased snp/indel calls
+- annotation of snp and svs with snsift, sansa and annotsv if enabled in the config.yaml (need specific input, see config.yaml)
 
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
@@ -51,7 +52,6 @@ This DAG was made:
 - deepvariant enabled through config.yaml setting
 - kraken enabled through config.yaml setting
 
-
 ![alt text](dag.png)
 
 
@@ -71,7 +71,7 @@ This DAG was made:
         - sawfish sv / cnv 
         - svs from sniffles phased with longphase
         - snp / svs / indels from nanocaller
-    - phased snps and svs get annotated with snpsift and sansa
+    - phased snps and svs get annotated with snpsift and sansa and annotsv if enabled
 - snakemake report, rulegraph, copy of samplesheet and config.yaml with timestamp
 
 

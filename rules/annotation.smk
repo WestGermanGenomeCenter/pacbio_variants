@@ -98,6 +98,6 @@ rule annotsv:
     shell:
         """
         AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.dir_out_snfls} -outputFile {output.snfls} >{log} 2>&1
-        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.phased_cnv_and_sv} -outputDir {params.dir_out_sawfs} -outputFile {output.sawfs} >{log} 2>&1
+        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.phased_cnv_and_svs} -outputDir {params.dir_out_sawfs} -outputFile {output.sawfs} >{log} 2>&1
         """
 # AnnotSV -annotationsDir ../../data/annotsv/AnnotSV/share/AnnotSV/ -SVinputFile sniffles_m84115_240808_202400_s2.hifi_reads.bc2026/m84115_240808_202400_s2.hifi_reads.bc2026_svs.vc
