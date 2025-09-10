@@ -20,7 +20,7 @@ rule sansa: # annotate svs
         annotated_bcf="{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sniffles_longphase_annotated.bcf",
         tsv="{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sniffles_longphase_annotated.tsv.gz",
         sawfish_bcf="{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.bcf",
-        sawfish_tsv="{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sawfish_annotated.tsv.gz",
+        sawfish_tsv="{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz",
     conda:
         "../envs/sansa.yaml"
     log:
@@ -52,7 +52,7 @@ rule snpsift: # snps
     conda:
         "../envs/snpeff.yaml"
     log:
-        "{output_dir}/logs/snpeff_{sample}.log"
+        "{output_dir}/logs/snpsift_{sample}.log"
     resources:
         threads=lambda wildcards, attempt: attempt * 2,
         time_hrs=lambda wildcards, attempt: attempt * 2,
@@ -63,6 +63,9 @@ rule snpsift: # snps
         "Annotating the snps with snpsift: {input.vcf_phased_longp}, {input.phased_vcf_whatsh} and {input.vcf_nano}..."
     shell:
         """
+        export _JAVA_OPTIONS="-Xmx12g" # otherwise annotation will run out of java heapspace at least 12 
+        export _JAVA_OPTIONS="-Xmx{resources.mem_gb}g" # otherwise annotation will run out of java heapspace dynamically as much as the job can give
+
         SnpSift annotate {params.annotation_snp_file} {input.vcf_phased_longp} >{output.longp_snp} 2>{log}
         SnpSift annotate {params.annotation_snp_file} {input.phased_vcf_whatsh} >{output.whatsh_snp} 2>{log}
         SnpSift annotate {params.annotation_snp_file} {input.vcf_nano} >{output.nanoc_smp} 2>{log}
@@ -70,3 +73,31 @@ rule snpsift: # snps
 
 
 # maybe future sv annotation: https://strvctvre.berkeley.edu/
+
+rule annotsv:
+    input:
+        svs_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
+        phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz" 
+    output:
+        snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_sniffles_longphase_annotated.tsv",
+        sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv",
+    conda:
+        "../envs/annotsv.yaml"
+    log:
+        "{output_dir}/logs/annotsv_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 2,
+        time_hrs=lambda wildcards, attempt: attempt * 2,
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 10)
+    params:
+        annotsv_data=config["annotsv_data_dir"],
+        dir_out_snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}",
+        dir_out_sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}"
+    message:
+        "Annotating the svs from longphase (sniffles) and sawfish with annotsv: {input.svs_phased} and {input.phased_cnv_and_svs}..."
+    shell:
+        """
+        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.dir_out_snfls} -outputFile {output.snfls} >{log} 2>&1
+        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.phased_cnv_and_sv} -outputDir {params.dir_out_sawfs} -outputFile {output.sawfs} >{log} 2>&1
+        """
+# AnnotSV -annotationsDir ../../data/annotsv/AnnotSV/share/AnnotSV/ -SVinputFile sniffles_m84115_240808_202400_s2.hifi_reads.bc2026/m84115_240808_202400_s2.hifi_reads.bc2026_svs.vc

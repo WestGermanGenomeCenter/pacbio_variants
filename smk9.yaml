@@ -1,7 +1,7 @@
 name: smk9
-channels:
-  - bioconda
-  - conda-forge
+#channels:
+#  - bioconda
+#  - conda-forge
 dependencies:
   - snakemake=9.9.0
   - snakemake-executor-plugin-cluster-generic

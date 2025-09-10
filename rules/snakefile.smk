@@ -41,7 +41,10 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     
     if config["use_sv_annotation"]:
-        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+#         sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv",
 
 
     if config["use_snp_annotation"]:
@@ -77,7 +80,8 @@ def get_output_files():
         all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_sv_annotation"]:
-        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
     if config["use_snp_annotation"]:
