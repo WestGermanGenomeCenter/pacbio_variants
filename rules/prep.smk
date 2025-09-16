@@ -169,17 +169,15 @@ rule fastqc:
     log:
         "{output_dir}/logs/fastqc_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 4,
+        threads=lambda wildcards, attempt: attempt * 8,
         time_hrs=lambda wildcards, attempt: attempt * 3,
-        mem_gb=lambda wildcards, attempt: 4 + (attempt * 8)
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 14)
 
     message:
         "reporting read quality input for {input.bam}..."
     shell:
         """
-        samtools fastq {input.bam} -@ {resources.threads} >{params.subsetted_fastq} 2>{log}
-        fastqc -q --threads {resources.threads} {params.subsetted_fastq} -o {params.output_dir} >> {log} 2>&1
-        fastp -i {params.subsetted_fastq} -h {params.fastp_report} -j {params.fastp_json} >> {log} 2>&1
+        fastqc --threads {resources.threads} {input.bam} -o {params.output_dir}  --memory 10000 >> {log} 2>&1
         """
 
 

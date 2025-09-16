@@ -32,6 +32,7 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
     - this can also be achieved by running the included setupPipeline_hpc.sh
         - that script uses conda to create the env smk9 - with snakemake 9 installed already (check file smk9.yaml)
+- make sure that conda only gets software from bioconda and conda-forge channels, the base channel includes a corrupt bcftools version that will result in failing bcftools, nanocaller, whatshap and more. "conda config --remove channels main" and "conda config --show channels" to verify that no base or main is in any list of channels (including defaults)!
 - cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/.)
 - edit samplesheet.csv with your filename 
     - one sample per line, do not delete the header line
@@ -73,6 +74,39 @@ This DAG was made:
         - snp / svs / indels from nanocaller
     - phased snps and svs get annotated with snpsift and sansa and annotsv if enabled
 - snakemake report, rulegraph, copy of samplesheet and config.yaml with timestamp
+
+
+
+# general workflow in short:
+
+prep the files:
+1- move all .bam files into the folder pb_variants. (up to 100 at once makes sense, more overloads the hpc for sure)
+	-- with methylation, no kinetics needed
+2- edit the config.yaml according to your needs. Mostly True/False. If unsure, keep as is but CHANGE THE OUTPUT DIRECTORY
+3- edit the samplesheet.csv: keep the first line and then list all .bam files that you want to analyze in the run. all files listed in that file NEED TO BE IN THE FOLDER 
+
+now the actual pipeline execution:
+1- start a screen session on the hpc
+2- start an interactive job inside the screen session with at least 2 days runtime
+3- cd into the folder pb_variants
+4- activate the correct conda env with: "conda activate smk9"
+5- run the pipeline with:"bash runPipeline.sh"
+
+supervising the run:
+- check the screen regulary if you want -red colour is bad
+- qstat -u your_hpc_username if you want
+- check outputfolder if files are appearing
+- check clusterlogs_your_hpc_username for errors
+- check outputfolder/logs for errors that occured
+- if a multiqc_report.html is in the outputfolder then the pipeline is done
+- if the interactive job is done, but the pipeline is not done yet, notify me
+- if no output files arrive after some time, notify me
+- if results look odd, notify me
+- if you want to understand more, notify me
+- if some (except logfiles) output files are 0 byte, notify me
+
+transfering results:
+- you can transfer the complete outputfolder if you want. all results are stored in subfolders that should explain themselves.
 
 
 ## roadmap:

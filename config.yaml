@@ -1,5 +1,5 @@
 reference: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/inputs/reference.fasta"
-output_dir: "results2" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
+output_dir: "results4" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
 demultiplex: False  # Set to true to enable demultiplexing
 use_kraken2: True # to check if all samples are truly human, finds contamination
 use_cpg_tools: True # only makes sense if methylation data is in input. additional kinetics not needed
