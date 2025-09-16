@@ -59,10 +59,33 @@ rule demultiplex:
         pbindex {output} --num-threads {resources.threads} >{log} 2>&1
         samtools index {output} -@ {resources.threads} >{log} 2>&1
         """
-#
-rule map:
+
+rule kinetics_removal:
     input:
         bam = "{sample}.bam" if not config["demultiplex"] else "{output_dir}/bams/{sample}_demux.bam",
+    output:
+        bam_no_kinetics="{output_dir}/bams/{sample}_no_kinetics.bam",
+    conda:
+        "../envs/samtools.yaml"
+    log:
+        "{output_dir}/logs/remove_kinetics_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: 6 + (attempt * 10),
+        time_hrs=lambda wildcards, attempt: attempt * 2,
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 24)
+    message:
+        "removing kinetics of {input.bam} ..."
+    shell:
+        """
+        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} >{log} 2>&1
+        """
+
+
+
+
+rule map:
+    input:
+        bam_no_kinetics="{output_dir}/bams/{sample}_no_kinetics.bam",
         index ="{output_dir}/reference.mmi",
     output:
         bam ="{output_dir}/bams/{sample}_aligned.bam",
@@ -73,26 +96,34 @@ rule map:
         "{output_dir}/logs/preprocess_{sample}.log"
 
     resources:
-        threads=lambda wildcards, attempt: 2 + (attempt * 10),
+        threads=lambda wildcards, attempt: 6 + (attempt * 10),
         time_hrs=lambda wildcards, attempt: attempt * 4,
         mem_gb=lambda wildcards, attempt: 72 + (attempt * 24)
     params:
         picard_tmp="{output_dir}/bams/",
         bam_no_kinetics="{output_dir}/bams/{sample}_no_kinetics.bam",
-        bai="{output_dir}/bams/{sample}_aligned.bam.bai"
+        bai="{output_dir}/bams/{sample}_aligned.bam.bai",
+        bamstats="{output_dir}/bams/{sample}_bamstats.txt",
+        pref="{output_dir}/bams/{sample}_bamstats",
 
     message:
         "Aligning reads for {input.bam} ..."
     shell:
         """
-        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} >{log} 2>&1
-        pbmm2 align {input.index} {params.bam_no_kinetics} --num-threads {resources.threads} --sort {output.bam} >{log} 2>&1
+        pbmm2 align {input.index} {input.bam_no_kinetics} --num-threads {resources.threads} --sort {output.bam} >{log} 2>&1
         pbindex {output.bam} --num-threads {resources.threads} >{log} 2>&1
         #picard BuildBamIndex -I {output.bam} -TMP_DIR {params.picard_tmp} -O {params.bai} >{log} 2>&1
         samtools index {output.bam} -@ {resources.threads} >{log} 2>&1
+        samtools stats {output.bam} > {params.bamstats} 2>{log}
+        plot-bamstats {params.bamstats} -p {params.pref} 2>{log}
         """
-# BuildBamIndex -I results/bams/little_bigger_subset_aligned.bam -TMP_DIR results/bams/ -O results/bams/little_bigger_subset_aligned.bam.bai
-# MAX_RECORDS_IN_RAM 1000000
+
+#samtools stats {input.bams} >{output.samtools_stats_file} 2>{log}
+#        samtools coverage {input.bams} >{params.samtools_coverage_file} 2>{log}
+#        plot-bamstats {output.samtools_stats_file} -p {params.samtools_plot_prefix}   2>{log}   
+#
+
+
 
 rule mosdepth:
     input:
@@ -115,6 +146,40 @@ rule mosdepth:
     shell:
         """
         mosdepth --threads {resources.threads} {params.prefix} {input.bam} >{log} 2>&1
+        """
+
+
+# adding fastqc or fastp
+
+
+
+rule fastqc:
+    input:
+        bam = "{sample}.bam" if not config["demultiplex"] else "{output_dir}/bams/{sample}_demux.bam",
+    output:
+        zip = temp("{output_dir}/fastqc/{sample}_fastqc.zip"), 
+        html = "{output_dir}/fastqc/{sample}_fastqc.html",
+    params:
+        subsetted_fastq=temp("{output_dir}/fastqc/{sample}_subsetted.fastq"),
+        fastp_report = "{output_dir}/fastqc/{sample}_fastp.html",
+        fastp_json = "{output_dir}/fastqc/{sample}_fastp.json",
+        output_dir="{output_dir}/fastqc/",
+    conda:
+        "../envs/fastqc.yaml"
+    log:
+        "{output_dir}/logs/fastqc_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 4,
+        time_hrs=lambda wildcards, attempt: attempt * 3,
+        mem_gb=lambda wildcards, attempt: 4 + (attempt * 8)
+
+    message:
+        "reporting read quality input for {input.bam}..."
+    shell:
+        """
+        samtools fastq {input.bam} -@ {resources.threads} >{params.subsetted_fastq} 2>{log}
+        fastqc -q --threads {resources.threads} {params.subsetted_fastq} -o {params.output_dir} >> {log} 2>&1
+        fastp -i {params.subsetted_fastq} -h {params.fastp_report} -j {params.fastp_json} >> {log} 2>&1
         """
 
 

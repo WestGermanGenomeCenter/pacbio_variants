@@ -56,7 +56,7 @@ rule snpsift: # snps
     resources:
         threads=lambda wildcards, attempt: attempt * 2,
         time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 2 + (attempt * 10)
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 22)
     params:
         annotation_snp_file=config["snp_annotation_file"] # dnsnp, hg38
     message:
@@ -79,8 +79,8 @@ rule annotsv:
         svs_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
         phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz" 
     output:
-        snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_sniffles_longphase_annotated.tsv",
-        sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv",
+        snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.tsv",
+        sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv",
     conda:
         "../envs/annotsv.yaml"
     log:
@@ -92,12 +92,33 @@ rule annotsv:
     params:
         annotsv_data=config["annotsv_data_dir"],
         dir_out_snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}",
-        dir_out_sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}"
+        dir_out_sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}",
+        unziped_safw="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf",
+        parental_dir="{output_dir}",
+        output_file1="{output_dir}/{sample}_snfls.tsv",
+        output_file2="{output_dir}/{sample}_sawf.tsv",
     message:
         "Annotating the svs from longphase (sniffles) and sawfish with annotsv: {input.svs_phased} and {input.phased_cnv_and_svs}..."
     shell:
         """
-        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.dir_out_snfls} -outputFile {output.snfls} >{log} 2>&1
-        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.phased_cnv_and_svs} -outputDir {params.dir_out_sawfs} -outputFile {output.sawfs} >{log} 2>&1
+        mkdir -p {params.dir_out_snfls} >>{log} 2>&1 # annotsv needs these dirs to be present before it starts
+        mkdir -p {params.dir_out_sawfs} >>{log} 2>&1
+        gunzip {input.phased_cnv_and_svs} -f -c >{params.unziped_safw}
+        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.parental_dir} -outputFile {params.output_file1}  >>{log} 2>&1        
+        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {params.unziped_safw} -outputDir {params.parental_dir} -outputFile {params.output_file2}  >>{log} 2>&1
+        mv {params.output_file1} {output.snfls} >>{log} 2>&1
+        mv {params.output_file2} {output.sawfs} >>{log} 2>&1
+        rm -f {params.parental_dir}/*unannotated.tsv >>{log} 2>&1
         """
+
+
+#test_subset_phased_SV.annotated.tsv
+# -f {input.gz_file} -c >{params.unpacked_snp} 2>{log}
+
+# to emulate AnnotSV -annotationsDir /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/AnnotSV/share/AnnotSV -SVinputFile results2/variants/longphase_test_subset/test_subset_phased_SV.vcf -outputFile test_annotated3.tsv -outputDir results2 -variantconvertDir results2
+        # test with variantconvertDir 
 # AnnotSV -annotationsDir ../../data/annotsv/AnnotSV/share/AnnotSV/ -SVinputFile sniffles_m84115_240808_202400_s2.hifi_reads.bc2026/m84115_240808_202400_s2.hifi_reads.bc2026_svs.vc
+# little_bigger_subset_phased_SV.annotated.tsv
+# this works: AnnotSV -annotationsDir /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/AnnotSV/share/AnnotSV -SVinputFile results2/variants/longphase_test_subset/test_subset_phased_SV.vcf -outputFile test_annotated.tsv -outputDir .
+#test_annotated.tsv then arrives at not even output dir, but pb_variants/. 
+# this also works: AnnotSV -annotationsDir /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/AnnotSV/share/AnnotSV -SVinputFile /gpfs/project/projects/bmfz_gtl/software/pb_variants/results2/variants/longphase_test_subset/test_subset_phased_SV.vcf -outputFile test_annotated2.tsv -outputDir results2 -variantconvertDir results2

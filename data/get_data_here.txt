@@ -1,4 +1,7 @@
 https://42basepairs.com/browse/gs/deepvariant/models/DeepVariant # models are included in the docker image, no download needed in most cases
-https://github.com/broadinstitute/tandem-repeat-catalog/releases
+https://github.com/broadinstitute/tandem-repeat-catalog/releases # needed for trgt
 # kraken2 database download: https://benlangmead.github.io/aws-indexes/k2
 # small variants: wget ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/00-All.vcf.gz # this is dbsnp, hg38
+# annotsv data: install annotsv as described in the quickstart page on github`s readme
+# sansa: hgsvc data from official webpage, gnomad also an option but much bigger dataset
+# reference genome: ucsc, ensembl or from illuminas reference genome bucket (igenome) or from hgsvcs ftp page, there you can also find hg38 without alt chroms

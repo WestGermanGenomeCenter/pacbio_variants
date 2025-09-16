@@ -1,0 +1,8 @@
+name: fastqc
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - fastqc
+  - fastp
+  - samtools=1.22.1

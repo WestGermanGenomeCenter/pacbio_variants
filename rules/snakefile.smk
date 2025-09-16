@@ -42,7 +42,8 @@ def get_mqc_files():
     
     if config["use_sv_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+#         sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv",
 
 #         sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv",
 
@@ -50,6 +51,11 @@ def get_mqc_files():
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snps_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
+
+
+
+#         html = "{output_dir}/fastqc/untrimmed_{sample}_fastqc.html",
+    all.extend(expand("{output_dir}/fastqc/{sample}_fastqc.html", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
@@ -81,7 +87,7 @@ def get_output_files():
 
     if config["use_sv_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
     if config["use_snp_annotation"]:
@@ -89,7 +95,7 @@ def get_output_files():
 
 
 
-
+    all.extend(expand("{output_dir}/fastqc/{sample}_fastqc.html", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
@@ -151,7 +157,7 @@ if not config["use_deepvariant_hpc"]:
             ref=config["reference"],
             checkpoint_dir=config["deepvariant_checkpoint_dir"],
         resources:
-            threads=lambda wildcards, attempt: attempt * 12,
+            threads=lambda wildcards, attempt: attempt * 16,
             time_hrs=lambda wildcards, attempt: attempt * 4,
             mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
 
@@ -183,7 +189,7 @@ if config["use_deepvariant_hpc"]:
             ref=config["reference"],
             checkpoint_dir=config["deepvariant_checkpoint_dir"],
         resources:
-            threads=lambda wildcards, attempt: attempt * 12,
+            threads=lambda wildcards, attempt: attempt * 16,
             time_hrs=lambda wildcards, attempt: attempt * 4,
             mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
 
@@ -215,7 +221,7 @@ rule nanocaller: # output snps are already haplotaged
     log:
         "{output_dir}/logs/nanocaller_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 12,
+        threads=lambda wildcards, attempt: attempt * 16,
         time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:

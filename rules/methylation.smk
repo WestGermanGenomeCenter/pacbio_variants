@@ -36,3 +36,6 @@ rule pb_cpg_tools: # only able to haplotype snps, cannot use svs. for this longp
         aligned_bam_to_cpg_scores --bam {input.haplotaged_bam} --output-prefix {params.prefix} --threads {resources.threads} >{log} 2>&1
         """
 # next methbat, probably only https://github.com/PacificBiosciences/MethBat/blob/main/docs/profile_guide.md#rare-methylation-analysis
+
+
+
