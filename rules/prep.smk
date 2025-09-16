@@ -77,7 +77,7 @@ rule kinetics_removal:
         "removing kinetics of {input.bam} ..."
     shell:
         """
-        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {params.bam_no_kinetics} {input.bam} >{log} 2>&1
+        samtools view -@ {resources.threads} --bam --remove-tag fi,fp,fn,ri,rp,rn --output {output.bam_no_kinetics} {input.bam} >{log} 2>&1
         """
 
 
