@@ -107,7 +107,7 @@ rule map:
         pref="{output_dir}/bams/{sample}_bamstats",
 
     message:
-        "Aligning reads for {input.bam} ..."
+        "Aligning reads for {input.bam_no_kinetics} ..."
     shell:
         """
         pbmm2 align {input.index} {input.bam_no_kinetics} --num-threads {resources.threads} --sort {output.bam} >{log} 2>&1
