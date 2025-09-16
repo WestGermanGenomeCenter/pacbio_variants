@@ -23,6 +23,7 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 - mosdepth, multiqc
 - pbmm2 for mapping
 - kraken2 for contamination detection (downsamples massively, needs kraken2 database)
+- fastqc
 - demultiplexing of input as option, will not split the files per barcode.
 - for now one .bam per sample
 - NanoCaller for phased snp/indel calls
@@ -49,7 +50,6 @@ use_deepvariant_hpc: True <- only set this to True on HPC HILBERT
 This DAG was made:
 - with snakemake --rulegraph option
 - demultiplexing disabled through config.yaml setting
-- cpg-tools disabled through config.yaml setting
 - deepvariant enabled through config.yaml setting
 - kraken enabled through config.yaml setting
 
@@ -79,41 +79,66 @@ This DAG was made:
 
 # general workflow in short:
 
-prep the files:
-1- move all .bam files into the folder pb_variants. (up to 100 at once makes sense, more overloads the hpc for sure)
-	-- with methylation, no kinetics needed
-2- edit the config.yaml according to your needs. Mostly True/False. If unsure, keep as is but CHANGE THE OUTPUT DIRECTORY
-3- edit the samplesheet.csv: keep the first line and then list all .bam files that you want to analyze in the run. all files listed in that file NEED TO BE IN THE FOLDER 
+## prep the files:
 
-now the actual pipeline execution:
-1- start a screen session on the hpc
-2- start an interactive job inside the screen session with at least 2 days runtime
-3- cd into the folder pb_variants
-4- activate the correct conda env with: "conda activate smk9"
-5- run the pipeline with:"bash runPipeline.sh"
+1. - move all .bam files into the folder pb_variants. (up to 100 at once makes sense, more overloads the hpc for sure)
+	- with methylation, no kinetics needed
 
-supervising the run:
+2. - edit the config.yaml according to your needs. Mostly True/False. If unsure, keep as is but CHANGE THE OUTPUT DIRECTORY
+
+3. - edit the samplesheet.csv: keep the first line and then list all .bam files that you want to analyze in the run. all files listed in that file NEED TO BE IN THE FOLDER 
+
+## now the actual pipeline execution:
+
+1. - start a screen session on the hpc
+
+2. - start an interactive job inside the screen session with at least 2 days runtime
+
+3. - cd into the folder pb_variants
+
+4. - activate the correct conda env with: "conda activate smk9"
+
+5. - run the pipeline with:"bash runPipeline.sh"
+
+
+## supervising the run:
+
 - check the screen regulary if you want -red colour is bad
+
 - qstat -u your_hpc_username if you want
+
 - check outputfolder if files are appearing
+
 - check clusterlogs_your_hpc_username for errors
+
 - check outputfolder/logs for errors that occured
+
 - if a multiqc_report.html is in the outputfolder then the pipeline is done
+
 - if the interactive job is done, but the pipeline is not done yet, notify me
+
 - if no output files arrive after some time, notify me
+
 - if results look odd, notify me
+
 - if you want to understand more, notify me
+
 - if some (except logfiles) output files are 0 byte, notify me
 
-transfering results:
+
+## transfering results:
+
 - you can transfer the complete outputfolder if you want. all results are stored in subfolders that should explain themselves.
 
 
 ## roadmap:
-- trio calling : deeptrio, glnexus
+ ´ trio calling : deeptrio, glnexus´
 
 
-## why this work is being done:
+
+
+
+# why this work is being done:
 - nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
     - does not run without sudo for us
     - seems not mature enough (imho)
