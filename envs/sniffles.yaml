@@ -9,9 +9,4 @@ dependencies:
   - sniffles=2.6.3
   - samtools=1.22.1
   - htslib
-#  - bcftools=1.19
   - tabix=1.11
-# - gzip
-  #- pysam=0.23.3
-#  - sniffles=2.6.3
-  #- sniffles=2.5.2

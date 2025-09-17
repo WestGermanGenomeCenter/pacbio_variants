@@ -3,6 +3,4 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - fastqc
-  - fastp
-  - samtools=1.22.1
+  - fastqc=0.12.1

@@ -3,5 +3,5 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - longphase=1.7.3
+  - longphase=2.0
   - tabix=1.11

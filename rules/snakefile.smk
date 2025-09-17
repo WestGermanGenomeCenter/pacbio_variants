@@ -43,9 +43,6 @@ def get_mqc_files():
     if config["use_sv_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
-#         sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv",
-
-#         sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_sawfish_annotated.tsv",
 
 
     if config["use_snp_annotation"]:
@@ -54,7 +51,6 @@ def get_mqc_files():
 
 
 
-#         html = "{output_dir}/fastqc/untrimmed_{sample}_fastqc.html",
     all.extend(expand("{output_dir}/fastqc/{sample}_fastqc.html", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
@@ -306,9 +302,9 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
     log:
         "{output_dir}/logs/sawfish_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 12,
+        threads=lambda wildcards, attempt: attempt * 10,
         time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 32 + (attempt * 32)
     message:
         "Calling SVs and CNVs for {input.bam} using sawfish..."
     shell:
@@ -395,7 +391,7 @@ rule sniffles:
         """
         sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite --threads {resources.threads} >{log} 2>&1
         # python3 -m sniffles2_plot -i {output.vcf} -o {params.plot_out} >{log} 2>&1
-        bgzip -c {output.vcf} > {output.gziped_file} >{log} 2>&1
+        bgzip -c {output.vcf} > {output.gziped_file} 2>{log}
         """
 
 
