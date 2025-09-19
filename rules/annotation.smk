@@ -46,9 +46,9 @@ rule snpsift: # snps
         phased_vcf_whatsh="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", # need to unpack, maybe
         vcf_nano="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz" # same here
     output:
-        longp_snp="{output_dir}/annotated_variants/snps_longphase_{sample}/{sample}_snp_longphase_annotated.vcf",
-        whatsh_snp="{output_dir}/annotated_variants/snps_whatshap_{sample}/{sample}_snp_whatshap_annotated.vcf",
-        nanoc_smp="{output_dir}/annotated_variants/snps_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf"
+        longp_snp="{output_dir}/annotated_variants/snpsift_longphase_{sample}/{sample}_snpsift_longphase_annotated.vcf",
+        whatsh_snp="{output_dir}/annotated_variants/snpsift_whatshap_{sample}/{sample}_snpsift_whatshap_annotated.vcf",
+        nanoc_smp="{output_dir}/annotated_variants/snpsift_nanocaller_{sample}/{sample}_snpsift_nanocaller_annotated.vcf"
     conda:
         "../envs/snpeff.yaml"
     log:
@@ -78,26 +78,31 @@ rule vep:
         phased_vcf_whatsh="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", # need to unpack, maybe
         vcf_nano="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz" # same here
     output:
-        longp_snp="{output_dir}/annotated_variants/vep_longphase_{sample}/{sample}_snp_longphase_annotated.vcf",
-        whatsh_snp="{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_snp_whatshap_annotated.vcf",
-        nanoc_smp="{output_dir}/annotated_variants/vep_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf"
+        longp_snp="{output_dir}/annotated_variants/vep_longphase_{sample}/{sample}_vep_longphase_annotated.vcf",
+        whatsh_snp="{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_vep_whatshap_annotated.vcf",
+        nanoc_smp="{output_dir}/annotated_variants/vep_nanocaller_{sample}/{sample}_vep_nanocaller_annotated.vcf"
     conda:
         "../envs/vep.yaml"
     log:
         "{output_dir}/logs/vep_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 2,
-        time_hrs=lambda wildcards, attempt: attempt * 3,
-        mem_gb=lambda wildcards, attempt: 2 + (attempt * 22)
+        threads=lambda wildcards, attempt: attempt * 4,
+        time_hrs=lambda wildcards, attempt: attempt * 5,
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 10)
     params:
-        cache_dir=config["vep_cache_dir"]
+        cache_dir=config["vep_cache_dir"],
+        whatsh_unzp="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf",
+        nanocaller_unzipped="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf"
+
     message:
         "Annotating the snps with vep: {input.vcf_phased_longp}, {input.phased_vcf_whatsh} and {input.vcf_nano}..."
     shell:
         """
-        vep --offline --dir_cache {params.cache_dir} -i {input.vcf_phased_longp} -o {output.longp_snp} --everything >>{log} 2>&1
-        vep --offline --dir_cache {params.cache_dir} -i {input.phased_vcf_whatsh} -o {output.whatsh_snp} --everything >>{log} 2>&1
-        vep --offline --dir_cache {params.cache_dir} -i {input.vcf_nano} -o {output.nanoc_smp} --everything >>{log} 2>&1
+        gunzip {input.phased_vcf_whatsh} -f -c >{params.whatsh_unzp}
+        gunzip {input.vcf_nano} -f -c >{params.nanocaller_unzipped}
+        vep --offline --dir_cache {params.cache_dir} -i {input.vcf_phased_longp} -o {output.longp_snp} --everything --force_overwrite --fork {resources.threads} >>{log} 2>&1
+        vep --offline --dir_cache {params.cache_dir} -i {params.whatsh_unzp} -o {output.whatsh_snp} --everything --force_overwrite --fork {resources.threads} >>{log} 2>&1
+        vep --offline --dir_cache {params.cache_dir} -i {params.nanocaller_unzipped} -o {output.nanoc_smp} --everything --force_overwrite --fork {resources.threads} >>{log} 2>&1
         """
 # vep -i m84115_240808_202400_s2.hifi_reads.bc2026_phased.vcf -o m84115_240808_202400_s2.hifi_reads.bc2026_phased_vep.vcf --offline --dir_cache ../../../data/vep_hg38/
 
@@ -129,6 +134,8 @@ rule annotsv:
         "Annotating the svs from longphase (sniffles) and sawfish with annotsv: {input.svs_phased} and {input.phased_cnv_and_svs}..."
     shell:
         """
+        rm -rf {params.dir_out_snfls} >>{log} 2>&1
+        rm -rf {params.dir_out_sawfs} >>{log} 2>&1
         mkdir -p {params.dir_out_snfls} >>{log} 2>&1 # annotsv needs these dirs to be present before it starts
         mkdir -p {params.dir_out_sawfs} >>{log} 2>&1
         gunzip {input.phased_cnv_and_svs} -f -c >{params.unziped_safw}
@@ -138,6 +145,8 @@ rule annotsv:
         mv {params.output_file2} {output.sawfs} >>{log} 2>&1
         rm -f {params.parental_dir}/*unannotated.tsv >>{log} 2>&1
         rm -f {params.parental_dir}/*.bash >>{log} 2>&1
+        rm -f {params.parental_dir}/*.bed >>{log} 2>&1
+
 
         """
 
