@@ -47,6 +47,9 @@ def get_mqc_files():
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snps_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_snp_whatshap_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+#         whatsh_snp="{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_snp_whatshap_annotated.vcf",
 
     if config["use_cpg_tools"]:
         all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -90,6 +93,7 @@ def get_output_files():
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snps_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_snp_whatshap_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
 

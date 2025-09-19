@@ -1,0 +1,6 @@
+name: vep
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - ensembl-vep=115.1

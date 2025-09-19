@@ -18,6 +18,7 @@ deepvariant_checkpoint_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variant
 kraken2_db_folder: "/gpfs/project/databases/Kraken2-2022-09-28/kraken_db_plus"
 snp_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/small_variants/00-All.vcf"  # Path to SNP annotation file wget ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/00-All.vcf.gz 
 sv_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf"    # Path to SV annotation file, should be gnomad_svs.vcf in best case ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf.gz
+vep_cache_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/vep_hg38"
 merge: true        # Set to true to enable merging of input files
 
 # /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/annotsv_353/

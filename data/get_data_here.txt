@@ -5,3 +5,4 @@ https://github.com/broadinstitute/tandem-repeat-catalog/releases # needed for tr
 # annotsv data: install annotsv as described in the quickstart page on github`s readme
 # sansa: hgsvc data from official webpage, gnomad also an option but much bigger dataset
 # reference genome: ucsc, ensembl or from illuminas reference genome bucket (igenome) or from hgsvcs ftp page, there you can also find hg38 without alt chroms
+# vep cache currently with awscli: aws s3 --no-sign-request --region eu-west-1 sync s3://annotation-cache/vep_cache/115_GRCh38/ .

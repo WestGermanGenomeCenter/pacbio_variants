@@ -72,6 +72,35 @@ rule snpsift: # snps
         """
 
 
+rule vep:
+    input:
+        vcf_phased_longp="{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf",
+        phased_vcf_whatsh="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", # need to unpack, maybe
+        vcf_nano="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz" # same here
+    output:
+        longp_snp="{output_dir}/annotated_variants/vep_longphase_{sample}/{sample}_snp_longphase_annotated.vcf",
+        whatsh_snp="{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_snp_whatshap_annotated.vcf",
+        nanoc_smp="{output_dir}/annotated_variants/vep_nanocaller_{sample}/{sample}_snp_nanocaller_annotated.vcf"
+    conda:
+        "../envs/vep.yaml"
+    log:
+        "{output_dir}/logs/vep_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 2,
+        time_hrs=lambda wildcards, attempt: attempt * 3,
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 22)
+    params:
+        cache_dir=config["vep_cache_dir"]
+    message:
+        "Annotating the snps with vep: {input.vcf_phased_longp}, {input.phased_vcf_whatsh} and {input.vcf_nano}..."
+    shell:
+        """
+        vep --offline --dir_cache {params.cache_dir} -i {input.vcf_phased_longp} -o {output.longp_snp} --everything >>{log} 2>&1
+        vep --offline --dir_cache {params.cache_dir} -i {input.phased_vcf_whatsh} -o {output.whatsh_snp} --everything >>{log} 2>&1
+        vep --offline --dir_cache {params.cache_dir} -i {input.vcf_nano} -o {output.nanoc_smp} --everything >>{log} 2>&1
+        """
+# vep -i m84115_240808_202400_s2.hifi_reads.bc2026_phased.vcf -o m84115_240808_202400_s2.hifi_reads.bc2026_phased_vep.vcf --offline --dir_cache ../../../data/vep_hg38/
+
 
 rule annotsv:
     input:
@@ -111,3 +140,9 @@ rule annotsv:
         rm -f {params.parental_dir}/*.bash >>{log} 2>&1
 
         """
+
+# next up: vep
+# vep -i m84115_240808_202400_s2.hifi_reads.bc2026_phased.vcf -o m84115_240808_202400_s2.hifi_reads.bc2026_phased_vep.vcf --offline --dir_cache ../../../data/vep_hg38/ <- there is the folder human next 
+# vep_cache_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/vep_hg38" already in config.yaml
+
+
