@@ -2,10 +2,9 @@ name: annotsv
 channels:    # apparently there is a bcftools error if installed via conda through anything else than the conda-forge channel
   - conda-forge
   - bioconda
-#  - http://conda.repo.test.hhu.de/conda-forge
-#  - http://conda.repo.test.hhu.de/bioconda
-#  - http://conda.repo.test.hhu.de/main
+  - http://conda.repo.test.hhu.de/conda-forge
+  - http://conda.repo.test.hhu.de/bioconda
 dependencies:
   - samtools=1.22.1
-  - annotsv=3.5.3 # if installing 3.5 it actually installs 3.5.2, thats the one version with the error
+  - annotsv=3.5.2 # if installing 3.5 it actually installs 3.5.2, thats the one version with the error
   - bcftools=1.22

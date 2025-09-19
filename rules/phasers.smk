@@ -63,7 +63,6 @@ rule whatshap: # only able to haplotype snps, cannot use svs. for this longphase
         time_hrs=lambda wildcards, attempt: attempt * 12,
         mem_gb=lambda wildcards, attempt: 52 + (attempt * 12)
     params:
-        sorted="{output_dir}/variants/whatshap_{sample}/{sample}_phased_sorted.vcf.gz",
         folder="{output_dir}/variants/whatshap_{sample}",
         stats_file="{output_dir}/variants/whatshap_{sample}/whatshap_{sample}_stats.tsv",
         packed="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz",

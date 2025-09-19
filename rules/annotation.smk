@@ -72,7 +72,6 @@ rule snpsift: # snps
         """
 
 
-# maybe future sv annotation: https://strvctvre.berkeley.edu/
 
 rule annotsv:
     input:
@@ -109,16 +108,6 @@ rule annotsv:
         mv {params.output_file1} {output.snfls} >>{log} 2>&1
         mv {params.output_file2} {output.sawfs} >>{log} 2>&1
         rm -f {params.parental_dir}/*unannotated.tsv >>{log} 2>&1
+        rm -f {params.parental_dir}/*.bash >>{log} 2>&1
+
         """
-
-
-#test_subset_phased_SV.annotated.tsv
-# -f {input.gz_file} -c >{params.unpacked_snp} 2>{log}
-
-# to emulate AnnotSV -annotationsDir /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/AnnotSV/share/AnnotSV -SVinputFile results2/variants/longphase_test_subset/test_subset_phased_SV.vcf -outputFile test_annotated3.tsv -outputDir results2 -variantconvertDir results2
-        # test with variantconvertDir 
-# AnnotSV -annotationsDir ../../data/annotsv/AnnotSV/share/AnnotSV/ -SVinputFile sniffles_m84115_240808_202400_s2.hifi_reads.bc2026/m84115_240808_202400_s2.hifi_reads.bc2026_svs.vc
-# little_bigger_subset_phased_SV.annotated.tsv
-# this works: AnnotSV -annotationsDir /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/AnnotSV/share/AnnotSV -SVinputFile results2/variants/longphase_test_subset/test_subset_phased_SV.vcf -outputFile test_annotated.tsv -outputDir .
-#test_annotated.tsv then arrives at not even output dir, but pb_variants/. 
-# this also works: AnnotSV -annotationsDir /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/AnnotSV/share/AnnotSV -SVinputFile /gpfs/project/projects/bmfz_gtl/software/pb_variants/results2/variants/longphase_test_subset/test_subset_phased_SV.vcf -outputFile test_annotated2.tsv -outputDir results2 -variantconvertDir results2
