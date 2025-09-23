@@ -86,23 +86,28 @@ rule vep:
     log:
         "{output_dir}/logs/vep_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 4,
+        threads=lambda wildcards, attempt: attempt * 8,
         time_hrs=lambda wildcards, attempt: attempt * 5,
         mem_gb=lambda wildcards, attempt: 2 + (attempt * 10)
     params:
         cache_dir=config["vep_cache_dir"],
         whatsh_unzp="{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf",
-        nanocaller_unzipped="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf"
-
+        nanocaller_unzipped="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf",
+        dir_long="{output_dir}/annotated_variants/vep_longphase_{sample}",
+        dir_whats="{output_dir}/annotated_variants/vep_whatshap_{sample}",
+        dir_nanoc="{output_dir}/annotated_variants/vep_nanocaller_{sample}",
     message:
         "Annotating the snps with vep: {input.vcf_phased_longp}, {input.phased_vcf_whatsh} and {input.vcf_nano}..."
     shell:
         """
         gunzip {input.phased_vcf_whatsh} -f -c >{params.whatsh_unzp}
         gunzip {input.vcf_nano} -f -c >{params.nanocaller_unzipped}
-        vep --offline --dir_cache {params.cache_dir} -i {input.vcf_phased_longp} -o {output.longp_snp} --everything --force_overwrite --fork {resources.threads} >>{log} 2>&1
-        vep --offline --dir_cache {params.cache_dir} -i {params.whatsh_unzp} -o {output.whatsh_snp} --everything --force_overwrite --fork {resources.threads} >>{log} 2>&1
-        vep --offline --dir_cache {params.cache_dir} -i {params.nanocaller_unzipped} -o {output.nanoc_smp} --everything --force_overwrite --fork {resources.threads} >>{log} 2>&1
+        rm -f {params.dir_long}/*
+        rm -f {params.dir_whats}/*
+        rm -f {params.dir_nanoc}/*
+        vep --offline --dir_cache {params.cache_dir} -i {input.vcf_phased_longp} -o {output.longp_snp} --everything --force_overwrite --fork {resources.threads} --warning_file {log} >>{log} 2>&1
+        vep --offline --dir_cache {params.cache_dir} -i {params.whatsh_unzp} -o {output.whatsh_snp} --everything --force_overwrite --fork {resources.threads} --warning_file {log} >>{log} 2>&1
+        vep --offline --dir_cache {params.cache_dir} -i {params.nanocaller_unzipped} -o {output.nanoc_smp} --everything --force_overwrite --fork {resources.threads} --warning_file {log} >>{log} 2>&1
         """
 # vep -i m84115_240808_202400_s2.hifi_reads.bc2026_phased.vcf -o m84115_240808_202400_s2.hifi_reads.bc2026_phased_vep.vcf --offline --dir_cache ../../../data/vep_hg38/
 
