@@ -23,17 +23,18 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 - mosdepth, multiqc
 - pbmm2 for mapping
 - kraken2 for contamination detection (downsamples massively, needs kraken2 database)
-- fastqc
 - demultiplexing of input as option, will not split the files per barcode.
 - for now one .bam per sample
 - NanoCaller for phased snp/indel calls
-- annotation of snp and svs with snsift, sansa and annotsv if enabled in the config.yaml (need specific input, see config.yaml)
+- Variants get annotated if configured through config.yaml:
+    - SVs with sansa and AnnotSV
+    - SNPs with vep and snpsift
+    - both only tested with hg38 for now
 
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
     - this can also be achieved by running the included setupPipeline_hpc.sh
         - that script uses conda to create the env smk9 - with snakemake 9 installed already (check file smk9.yaml)
-- make sure that conda only gets software from bioconda and conda-forge channels, the base channel includes a corrupt bcftools version that will result in failing bcftools, nanocaller, whatshap and more. "conda config --remove channels main" and "conda config --show channels" to verify that no base or main is in any list of channels (including defaults)!
 - cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/.)
 - edit samplesheet.csv with your filename 
     - one sample per line, do not delete the header line
@@ -51,7 +52,7 @@ This DAG was made:
 - with snakemake --rulegraph option
 - demultiplexing disabled through config.yaml setting
 - deepvariant enabled through config.yaml setting
-- kraken enabled through config.yaml setting
+
 
 ![alt text](dag.png)
 
@@ -71,10 +72,9 @@ This DAG was made:
         - hificnv
         - sawfish sv / cnv 
         - svs from sniffles phased with longphase
-        - snp / svs / indels from nanocaller
-    - phased snps and svs get annotated with snpsift and sansa and annotsv if enabled
+        - snps / indels from nanocaller
+    - phased snps and svs get annotated with snpsift and sansa and annotsv and vep   
 - snakemake report, rulegraph, copy of samplesheet and config.yaml with timestamp
-
 
 
 # general workflow in short:
@@ -136,9 +136,11 @@ This DAG was made:
 
 
 
+## roadmap:
+- trio calling : deeptrio, glnexus
 
 
-# why this work is being done:
+## why this work is being done:
 - nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
     - does not run without sudo for us
     - seems not mature enough (imho)

@@ -136,7 +136,7 @@ rule multiqc:
         "{output_dir}/logs/Multiqc.log"
     shell:
         """
-        multiqc {params.dir} --filename {output} --no-data-dir >{log} 2>&1
+        multiqc {params.dir} --filename {output} --no-data-dir --fullnames >{log} 2>&1
         """
 
 
@@ -207,7 +207,7 @@ if config["use_deepvariant_hpc"]:
 
 
 
-
+# next up: cleaning. bams and variants need a lot of storage, need to minimize this
 
 rule nanocaller: # output snps are already haplotaged
     input:
@@ -230,7 +230,7 @@ rule nanocaller: # output snps are already haplotaged
         "Calling SNPs and SVs for {input.bam} using NanoCaller..."
     shell:
         """
-        NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >{log} 2>&1 # --phase for now disabled because of the bcftools error, not creating .bam files
+        NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >{log} 2>&1
         """    
 
 
