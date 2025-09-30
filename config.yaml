@@ -8,6 +8,8 @@ use_sv_annotation: False # only hg38 for now, needs database file and annotsv da
 use_snp_annotation: True 
 use_deepvariant: True #  False uses bcftools. deepvariant is much better and should be prefered
 use_deepvariant_hpc: True
+use_overlaps: True
+use_paraviewer: True # only enable for hg38
 # new annotsv update and new annotations data to go with it. did work on fluse:
 annotsv_data_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/annotsv_353/AnnotSV" # this needs to be created by annotsv itself, the installation independent from conda: use the official installation instructions here: https://github.com/lgmgeo/AnnotSV/blob/master/share/doc/AnnotSV/quickstart.md  
 barcodes_lima_fasta: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/input/pacbio_barcodes.fasta"
@@ -20,7 +22,3 @@ snp_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/
 sv_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf"    # Path to SV annotation file, should be gnomad_svs.vcf in best case ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf.gz
 vep_cache_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/vep_hg38"
 merge: true        # Set to true to enable merging of input files
-
-# /gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/annotsv_353/
-# AnnotSV -SVinputFile test1.bed -outputFile ./test.annotated.tsv -svtBEDcol 4 -annotationsDir ../../../../share/AnnotSV
-# AnnotSV 3.5 

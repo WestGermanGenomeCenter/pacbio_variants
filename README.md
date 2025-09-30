@@ -5,7 +5,7 @@ Only PacBio data for now
 
 __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 
-## what this tools aims to deliver:
+## what this tool aims to deliver:
     - newest and best tools suited for HiFi data (only for now)
     - singletons and trio analysis (trio is coming sometime...)
     - human-first (hg38 for now), others should be possible (untested...)
@@ -30,19 +30,23 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
     - SVs with sansa and AnnotSV
     - SNPs with vep and snpsift
     - both only tested with hg38 for now
+- if enabled, SNPs and SVs get overlaped (compared)
+    - svs: truvari overlaps sniffles as the "truth" to sawfish data for each sample
+    - snps: rtg-tools overlaps deepvariant or bcftools snps as the "truth" to nanocaller snps for each sample
+- if enabled, paraphase results get visualized with paraviewer
 
 ## how to run
 - make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
     - this can also be achieved by running the included setupPipeline_hpc.sh
         - that script uses conda to create the env smk9 - with snakemake 9 installed already (check file smk9.yaml)
-- cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/.)
+- cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/your_bam_file_here.bam)
 - edit samplesheet.csv with your filename 
-    - one sample per line, do not delete the header line
-- edit config.yaml to your liking/ folder structure
+    - one sample per line, do not delete the header line (add to line2: your_bam_file_here.bam)
+- edit config.yaml to your liking/ folder structure (enable only things you want / need. keep in mind some analysis are hg38 only)
 - make sure you are in an interactive terminal session inside a screen / tmux or similar
 - bash runPipeline_local.sh for local installment on single-server setups, 
 - bash runPipeline.sh on HPC 
-- non-hpc users need to edit the config.yaml and enable deepvariant and disable hpc in the config.yaml:
+- non-hpc users need to edit the config.yaml and enable deepvariant and disable deepvariant_hpc in the config.yaml:
 use_deepvariant_hpc: True <- only set this to True on HPC HILBERT
 
 
@@ -115,15 +119,9 @@ This DAG was made:
 
 - if a multiqc_report.html is in the outputfolder then the pipeline is done
 
-- if the interactive job is done, but the pipeline is not done yet, notify me
+- if the interactive job is done, but the pipeline is not done yet, retry
 
-- if no output files arrive after some time, notify me
-
-- if results look odd, notify me
-
-- if you want to understand more, notify me
-
-- if some (except logfiles) output files are 0 byte, notify me
+- if you want to understand more, email me
 
 
 ## transfering results:
@@ -132,12 +130,7 @@ This DAG was made:
 
 
 ## roadmap:
- ´ trio calling : deeptrio, glnexus´
-
-
-
-## roadmap:
-- trio calling : deeptrio, glnexus
+ ´ trio calling : deeptrio, glnexus ´ -> only if there are requests for this. 
 
 
 ## why this work is being done:

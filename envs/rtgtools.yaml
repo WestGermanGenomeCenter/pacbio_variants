@@ -1,0 +1,7 @@
+name: rtgtools
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - rtg-tools=3.13 
+  - tabix=1.11

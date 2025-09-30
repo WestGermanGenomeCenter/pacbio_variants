@@ -1,0 +1,7 @@
+name: truvari
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - truvari=5.3.0
+  - tabix=1.11

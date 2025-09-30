@@ -17,6 +17,7 @@ include:"prep.smk"
 include:"phasers.smk"
 include:"methylation.smk"
 include:"annotation.smk"
+include:"overlap.smk"
 
 # this is the same as the get_output_files except minus the multiqc report
 def get_mqc_files():
@@ -44,6 +45,16 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
+
+
+    if config["use_overlaps"]:
+        all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/overlap/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/overlaped_variants/snps_{sample}/overlap/summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+    if config["use_paraviewer"]:
+        all.extend(expand("{output_dir}/annotated_variants/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
+ 
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snpsift_nanocaller_{sample}/{sample}_snpsift_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -90,6 +101,14 @@ def get_output_files():
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
+    if config["use_overlaps"]:
+        all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/overlap/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/overlaped_variants/snps_{sample}/overlap/summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+    if config["use_paraviewer"]:
+        all.extend(expand("{output_dir}/annotated_variants/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
+ 
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snpsift_nanocaller_{sample}/{sample}_snpsift_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -227,7 +246,7 @@ rule nanocaller: # output snps are already haplotaged
         time_hrs=lambda wildcards, attempt: attempt * 2,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
-        "Calling SNPs and SVs for {input.bam} using NanoCaller..."
+        "Calling snps for {input.bam} using NanoCaller..."
     shell:
         """
         NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >{log} 2>&1
