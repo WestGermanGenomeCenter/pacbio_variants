@@ -154,12 +154,10 @@ rule annotsv:
 
         """
 
-# include paraviewer
-
 
 rule paraviewer:
     input:
-        done_flag= "{output_dir}/variants/paraphase_{sample}/{sample}_done.flag"
+        done_flag= "{output_dir}/variants/paraphase_{sample}/{sample}_done.flag",
         reference=config["reference"], # must be fasta
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
@@ -177,7 +175,7 @@ rule paraviewer:
         time_hrs=lambda wildcards, attempt: attempt * 1,
         mem_gb=lambda wildcards, attempt: 4 + (attempt * 12)
     message:
-        "Paralog annotation visualization for {input.bam} ..."
+        "Paralog annotation / visualization for {input.bam} ..."
     shell:
         """
         paraviewer --outdir {params.dir} --paraphase-dir {params.para_dir} --genome hg38 >{log} 2>&1

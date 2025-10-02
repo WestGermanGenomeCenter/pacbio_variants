@@ -11,3 +11,4 @@ dependencies:
   - samtools=1.22.1
   - igv
   - igv-reports
+  - xvfbwrapper

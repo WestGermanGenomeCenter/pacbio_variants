@@ -22,22 +22,16 @@ include:"overlap.smk"
 # this is the same as the get_output_files except minus the multiqc report
 def get_mqc_files():
     all=list()
+
     if config["use_deepvariant"]:
         all.extend(expand("{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if not config["use_deepvariant"]:
         all.extend(expand("{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-    all.extend(expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
     if config["use_kraken2"]:
         all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-    all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
-    all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     if config["use_mitosaw"]:
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     
@@ -45,30 +39,30 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-
-
     if config["use_overlaps"]:
-        all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/overlap/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/overlaped_variants/snps_{sample}/overlap/summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
 
     if config["use_paraviewer"]:
         all.extend(expand("{output_dir}/annotated_variants/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
- 
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snpsift_nanocaller_{sample}/{sample}_snpsift_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/vep_nanocaller_{sample}/{sample}_vep_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-#         whatsh_snp="{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_snp_whatshap_annotated.vcf",
-
     if config["use_cpg_tools"]:
         all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
-
+# mandatory output for each run minus multiqc
+    all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
+    all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/qc/{sample}_fastqc.html", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
@@ -83,52 +77,50 @@ def get_output_files():
     if not config["use_deepvariant"]:
         all.extend(expand("{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-    all.extend(expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
     if config["use_kraken2"]:
         all.extend(expand("{output_dir}/kraken2/{sample}_kraken2.report", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-
     if config["use_mitosaw"]:
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
-    if config["use_cpg_tools"]:
-        all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
+    
     if config["use_sv_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_overlaps"]:
-        all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/overlap/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/overlaped_variants/snps_{sample}/overlap/summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
 
     if config["use_paraviewer"]:
         all.extend(expand("{output_dir}/annotated_variants/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
- 
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snpsift_nanocaller_{sample}/{sample}_snpsift_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/vep_nanocaller_{sample}/{sample}_vep_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
+    if config["use_cpg_tools"]:
+        all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
-    all.extend(expand("{output_dir}/qc/{sample}_fastqc.html", sample=filenames_without_extension, output_dir=config["output_dir"])),
+# mandatory output for each run with multiqc, ending the run
     all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+    all.extend(expand("{output_dir}/qc/{sample}_fastqc.html", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/bams/{sample}_aligned.bam", sample=filenames_without_extension, output_dir=config["output_dir"])),    
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
     all.extend(expand("{output_dir}/multiqc_report.html", output_dir=config["output_dir"])) # this line is the only difference to multiqc input, for now
 
-
-
     return all
+
+# begin of actual rules
+
+
 
 rule all:
     input:
@@ -226,7 +218,6 @@ if config["use_deepvariant_hpc"]:
 
 
 
-# next up: cleaning. bams and variants need a lot of storage, need to minimize this
 
 rule nanocaller: # output snps are already haplotaged
     input:

@@ -13,15 +13,15 @@ output_dir=config["output_dir"]
 
 
 
-rule truvari: # annotate svs
+rule truvari: # overlap unannotated svs
     input:
         phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz",
         gziped_file="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf.gz",
         reference=config["reference"],
-
+ 
 
     output:
-        truvari_done="{output_dir}/overlaped_variants/svs_{sample}/overlap/summary.json"
+        truvari_done="{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json"
     conda:
         "../envs/truvari.yaml"
     log:
@@ -33,7 +33,7 @@ rule truvari: # annotate svs
     params:
         sawf="{output_dir}/overlaped_variants/svs_{sample}/{sample}_sawfish.vcf.gz",
         snfs="{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles.vcf.gz",
-        dir="{output_dir}/overlaped_variants/svs_{sample}/overlap"
+        dir="{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish"
     message:
         "Overlaping svs with truvari: {input.phased_cnv_and_svs} and {input.gziped_file}..."
     shell:

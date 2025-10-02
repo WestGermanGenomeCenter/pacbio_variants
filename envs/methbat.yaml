@@ -1,0 +1,6 @@
+name: methbat
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - methbat

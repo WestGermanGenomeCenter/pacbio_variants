@@ -106,8 +106,3 @@ rule longphase: # phases snps, svs and more
         longphase phase -s {params.unpacked_snp} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >{log} 2>&1
         longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} >{log} 2>&1
         """
-
-# longphase can also phase mods: longphase modcall \-b alignment.bam \ -r reference.fasta \ -t 8 \ -o modcall
-# longphase phase \-s SNP.vcf \--mod-file modcall.vcf \-b alignment.bam \-r reference.fasta \-t 8 \-o phased_prefix \--ont # or --pb for PacBio Hifi
-# needs apparently lots of ram and not really specified that you can phase snp, svs and mods at the same time, so skipping it for now. 
-# once this is tested well, then this is the second way to get phased modcalls (next to cpgtools from pacbio)
