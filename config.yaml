@@ -1,24 +1,28 @@
+# the reference and output needs to be checked / changed for every run. 
 reference: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/inputs/reference.fasta"
 output_dir: "results_test_new" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
-demultiplex: False  # Set to true to enable demultiplexing
-use_kraken2: True # to check if all samples are truly human, finds contamination
-use_cpg_tools: True # only makes sense if methylation data is in input. additional kinetics not needed
-use_mitosaw: True # Mitochondrial variations, only hg38 supported
-use_sv_annotation: False # only hg38 for now, needs database file and annotsv data installed.
-use_snp_annotation: True 
-use_deepvariant: True #  False uses bcftools. deepvariant is much better and should be prefered
-use_deepvariant_hpc: True
-use_overlaps: True
-use_paraviewer: True # only enable for hg38
-# new annotsv update and new annotations data to go with it. did work on fluse:
+
+# the options below enable / disable specific parts of the workflow. some tools are hg38 only, 
+demultiplex: False            # Set to true to enable demultiplexing, usually this if False because the input bam file is already demultiplexed
+use_kraken2: True             # to check if all samples are truly human, finds contamination
+use_cpg_tools: True           # only makes sense if methylation data is in input. additional kinetics not needed
+use_mitosaw: True             # Mitochondrial variations, only hg38 supported
+use_sv_annotation: True       # only hg38 for now, needs database file and annotsv data installed. uses sansa and annotsv
+use_snp_annotation: True      # vep and snpsift
+use_deepvariant: True         # False uses bcftools. deepvariant is much better and should be prefered
+use_deepvariant_hpc: True     # enable this if you use the pipeline on HILBERT, there is a module just made by hpc staff that is used then
+use_secondary_options: True   # enables nanocaller, sawfish, and longphase as secondary snp/indel caller, secondary sv/cnv caller and secondary phasing tool. only makes sense to disable if annotations and overlap are disables aswell
+use_overlaps: True            # overlaps svs and snps using rtg-tools for snps (deepvariant / bcftools vs nanocaller ) and truvari for svs (sniffles vs sawfish)
+use_paraviewer: True          # only enable for hg38, currently not compatible with HILBERT
+
+# below are data files and folders. only change if needed / not using any hg38
 annotsv_data_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/annotsv_353/AnnotSV" # this needs to be created by annotsv itself, the installation independent from conda: use the official installation instructions here: https://github.com/lgmgeo/AnnotSV/blob/master/share/doc/AnnotSV/quickstart.md  
 barcodes_lima_fasta: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/input/pacbio_barcodes.fasta"
-sif_image_deepvariant: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_1.9.0.sif" # get this by doing: singularity pull docker://google/deepvariant:latest
+sif_image_deepvariant: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_1.9.0.sif" # get this by doing: singularity pull docker://google/deepvariant:latest, only needed if deepvariant is used and the hpc is not used
 bcftools_min_q_filter: "20" # only used if bcftools is used instead of deepvariant.
 repeats_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/repeat_catalog_v1.hg38.1_to_1000bp_motifs.TRGT.bed"
-deepvariant_checkpoint_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_pacbio_190_model"
+deepvariant_checkpoint_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_pacbio_190_model" # not needed currently
 kraken2_db_folder: "/gpfs/project/databases/Kraken2-2022-09-28/kraken_db_plus"
-snp_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/small_variants/00-All.vcf"  # Path to SNP annotation file wget ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/00-All.vcf.gz 
-sv_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf"    # Path to SV annotation file, should be gnomad_svs.vcf in best case ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf.gz
+snp_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/small_variants/00-All.vcf"  # Path to snpsift SNP annotation file wget ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/00-All.vcf.gz 
+sv_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf"    # Path to SV annotation file, .vcf 
 vep_cache_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/vep_hg38"
-merge: true        # Set to true to enable merging of input files

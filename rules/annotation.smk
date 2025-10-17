@@ -150,8 +150,6 @@ rule annotsv:
         rm -f {params.parental_dir}/*unannotated.tsv >>{log} 2>&1
         rm -f {params.parental_dir}/*.bash >>{log} 2>&1
         rm -f {params.parental_dir}/*.bed >>{log} 2>&1
-
-
         """
 
 

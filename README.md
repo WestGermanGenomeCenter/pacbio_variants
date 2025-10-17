@@ -130,8 +130,9 @@ This DAG was made:
 
 
 ## roadmap:
- ´ trio calling : deeptrio, glnexus ´ -> only if there are requests for this. 
-
+  trio calling : deeptrio, glnexus  -> only if there are requests for this. 
+  assembly : hifiasm or similar -> only if there are requests for this. 
+  str profiling: strkit, currently testing
 
 ## why this work is being done:
 - nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
