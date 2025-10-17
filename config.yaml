@@ -1,6 +1,6 @@
 # the reference and output needs to be checked / changed for every run. 
 reference: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/inputs/reference.fasta"
-output_dir: "results_test_new" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
+output_dir: "results_test" # no / at the end here allowed!! do path/to/dir instead of path/to/dir/
 
 # the options below enable / disable specific parts of the workflow. some tools are hg38 only, 
 demultiplex: False            # Set to true to enable demultiplexing, usually this if False because the input bam file is already demultiplexed

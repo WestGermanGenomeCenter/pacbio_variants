@@ -52,13 +52,18 @@ use_deepvariant_hpc: True <- only set this to True on HPC HILBERT
 
 
 # DAG
-This DAG was made:
-- with snakemake --rulegraph option
-- demultiplexing disabled through config.yaml setting
-- deepvariant enabled through config.yaml setting
-
+Before each start, a DAG is created visualising the planned tasks for each sample.
+An example:
 
 ![alt text](dag.png)
+
+All options enabled:
+
+![alt text](full.png)
+
+Minimalistic execution (and bcftools instead of Deepvariant) with only mandatory tasks:
+
+![alt text](minimalistic.png)
 
 
 ## output files
