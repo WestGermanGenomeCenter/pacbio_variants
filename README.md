@@ -7,8 +7,9 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 
 ## what this tool aims to deliver:
     - newest and best tools suited for HiFi data (only for now)
-    - singletons and trio analysis (trio is coming sometime...)
-    - human-first (hg38 for now), others should be possible (untested...)
+    - singletons analysis 
+    - human-first (hg38 for now), others should be possible (untested)
+
 
 ## included tools:
 - deepvariant or bcftools for snp calling
@@ -50,7 +51,6 @@ __!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
 use_deepvariant_hpc: True <- only set this to True on HPC HILBERT
 
 
-
 # DAG
 Before each start, a DAG is created visualising the planned tasks for each sample.
 An example:
@@ -66,7 +66,7 @@ Minimalistic execution (and bcftools instead of Deepvariant) with only mandatory
 ![alt text](minimalistic.png)
 
 
-## output files
+## Output files
 - the first step of the pipeline is to strip the kinetics data out of the .bam input file, but keep the methylation data. This makes all following processes much faster without any real data loss. 
 - for each input sample:
     - mosdepth and kraken (optional) report that get summarized with multiqc

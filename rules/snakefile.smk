@@ -54,17 +54,13 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
-
-
-# new option to disable all but the core workflow:
+    # option to disable all but the core workflow:
     if config["use_secondary_options"]:
         all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-
-# mandatory output for each run minus multiqc
-
+    # mandatory output for each run minus multiqc
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -115,12 +111,7 @@ def get_output_files():
         all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-
-
-
-
-
-
+    # all non-optional output, including multiqc
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -133,15 +124,10 @@ def get_output_files():
 
     return all
 
-# begin of actual rules
-
-
 
 rule all:
     input:
         get_output_files()
-
-
 
 rule multiqc:
     input:
@@ -230,9 +216,6 @@ if config["use_deepvariant_hpc"]:
             """
 
 
-
-
-
 rule nanocaller: # output snps are already haplotaged
     input:
         reference=config["reference"], # must be fasta
@@ -256,8 +239,6 @@ rule nanocaller: # output snps are already haplotaged
         """
         NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >{log} 2>&1
         """    
-
-
 
 
 rule bcftools_snp:
@@ -321,7 +302,6 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
         reference=config["reference"], # must be fasta
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
-        #stats="{output_dir}/variants/sawfish_{sample}/run.stats.json", # might now be missing
         phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz" 
     params:
         output_dir="{output_dir}/variants/sawfish_{sample}",
@@ -425,7 +405,7 @@ rule sniffles:
         """
 
 
-rule hificnv: # todo: use haplotagged .bam file as input instead
+rule hificnv:
     input:
         bam="{output_dir}/bams/{sample}_aligned.bam",
         reference=config["reference"], # must be fasta
