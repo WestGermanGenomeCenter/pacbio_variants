@@ -175,14 +175,18 @@ if not config["use_deepvariant_hpc"]:
             time_hrs=lambda wildcards, attempt: attempt * 4,
             mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
 
+        singularity:
+            config["sif_image_deepvariant"]
+
         message:
             "Calling short variants for {input.bam} using DeepVariant..."
         shell:
             """
-            apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >{log} 2>&1
+            /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >{log} 2>&1
             rm -rf {params.intermediate_dir} >{log} 2>&1
             """
 
+# make this the same as             apptainer run {params.sif_dir} /opt/deepvariant/bin/run_deepvariant --model_type=PACBIO --ref={params.ref} --reads={input.bam} --vcf_stats_report=true --output_vcf={output.vcf} --output_gvcf={output.gvcf} --num_shards {resources.threads} --intermediate_results_dir {params.intermediate_dir} >{log} 2>&1
 
 
 if config["use_deepvariant_hpc"]:

@@ -9,6 +9,21 @@ start_time="`date +"%Y_%m_%d_%I_%M_%p"`"
 cp config.yaml $out/config_$start_time.yaml
 cp samplesheet.csv $out/samplesheet_$start_time.csv
 
+
+# print before execution what is on and what is off
+echo "Pre-run: options enabled: "
+echo "(config.yaml option set to True)"
+echo "==================================="
+grep True config.yaml | awk '{print $2":",$1}' | sed 's/use_//g'
+echo ""
+echo ""
+echo "Pre-run: options disabled: "
+echo "(config.yaml option set to False)"
+echo "==================================="
+grep False config.yaml | awk '{print $2":",$1}' | sed 's/use_//g'
+echo ""
+echo ""
+
 # create a rulegraph before executing the actual pipeline
 snakemake -s rules/snakefile.smk --forceall --rulegraph | dot -Tpdf > $out/pb_variants_rulegraph.$start_time.pdf
 snakemake --profile pbs_pacbio -s rules/snakefile.smk
