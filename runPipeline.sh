@@ -48,3 +48,12 @@ snakemake --profile pbs_pacbio -s rules/snakefile.smk
 # after the run a report is created with task runtime and more info
 snakemake -s rules/snakefile.smk --report $out/pb_variants_report.$start_time.html
 
+
+# create checksums of all files created
+echo "Completed the run."
+echo "Creating Filelist of $out"
+find $out -type f -exec ls  -alth --time-style=long-iso {} \; | sort > $out/filelist_project_$out.$start_time.sha256
+echo "Last Task: creating checksums:"
+echo "Creating checksumfile $out/checksums_project_$out.$start_time.sha256 ..."
+find $out -type f -exec sha256sum {} \; | sort > $out/checksums_project_$out.$start_time.sha256
+echo "Done."
