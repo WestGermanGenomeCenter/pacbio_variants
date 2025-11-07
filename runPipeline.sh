@@ -31,6 +31,9 @@ if ls $out/config*.yaml 1> /dev/null 2>&1; then
     mv -f $out/pb_variants_* $out/logs/previous_executions/.
     mv -f $out/config*.yaml $out/logs/previous_executions/.
     mv -f $out/samplesheet*.csv $out/logs/previous_executions/.
+    mv -f $out/*.sha256 $out/logs/previous_executions/.
+    mv -f $out/*.filelist $out/logs/previous_executions/.
+
     echo "Files from old execution moved."
 else
     echo "No files from a previous execution found. starting..."
@@ -52,8 +55,8 @@ snakemake -s rules/snakefile.smk --report $out/pb_variants_report.$start_time.ht
 # create checksums of all files created
 echo "Completed the run."
 echo "Creating Filelist of $out"
-find $out -type f -exec ls  -alth --time-style=long-iso {} \; | sort > $out/filelist_project_$out.$start_time.sha256
+find $out -type f -exec ls  -alth --time-style=long-iso {} \; | sort > $out/filelist_project_$start_time.filelist
 echo "Last Task: creating checksums:"
-echo "Creating checksumfile $out/checksums_project_$out.$start_time.sha256 ..."
-find $out -type f -exec sha256sum {} \; | sort > $out/checksums_project_$out.$start_time.sha256
+echo "Creating checksumfile $out/checksums_$start_time.sha256 ..."
+find $out -type f -exec sha256sum {} \; | sort > $out/checksums_$start_time.sha256
 echo "Done."
