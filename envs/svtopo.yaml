@@ -1,7 +1,6 @@
-name: sawfish
+name: svtopo
 channels:
   - bioconda
   - conda-forge
 dependencies:
-  - sawfish=2.1.1
-  - tabix=1.11
+  - svtopo=0.3.0

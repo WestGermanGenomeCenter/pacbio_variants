@@ -13,7 +13,13 @@ use_deepvariant: True         # if deactivated it uses bcftools. deepvariant is 
 use_deepvariant_hpc: True     # enable this if you use the pipeline on HILBERT, there is a module just made by hpc staff that is used then
 use_secondary_options: True   # enables nanocaller, sawfish, and longphase as secondary snp/indel caller, secondary sv/cnv caller and secondary phasing tool. only makes sense to disable if annotations and overlap are disables aswell
 use_overlaps: True            # overlaps svs and snps using rtg-tools for snps (deepvariant / bcftools vs nanocaller ) and truvari for svs (sniffles vs sawfish)
-use_paraviewer: False          # only enable for hg38, currently not compatible with HILBERT
+# below are the tertiary tools
+use_paraviewer: False         # only enable for hg38, currently not compatible with HILBERT
+use_svtopo: False             # visualizes svs called from sawfish, needs the exclude regions file from below
+
+
+
+
 
 # below are data files and folders. only change if needed / not using any hg38
 annotsv_data_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/annotsv_353/AnnotSV" # this needs to be created by annotsv itself, the installation independent from conda: use the official installation instructions here: https://github.com/lgmgeo/AnnotSV/blob/master/share/doc/AnnotSV/quickstart.md  
@@ -26,3 +32,4 @@ kraken2_db_folder: "/gpfs/project/databases/Kraken2-2022-09-28/kraken_db_plus"
 snp_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/small_variants/00-All.vcf"  # Path to snpsift SNP annotation file wget ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/VCF/00-All.vcf.gz 
 sv_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf"    # Path to SV annotation file, .vcf 
 vep_cache_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/vep_hg38"
+svtopo_exclude_regions: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/cnv.excluded_regions.hg38.bed.gz"

@@ -18,6 +18,8 @@ include:"phasers.smk"
 include:"methylation.smk"
 include:"annotation.smk"
 include:"overlap.smk"
+include:"tertiary_tools.smk"
+
 
 # this is the same as the get_output_files except minus the multiqc report
 def get_mqc_files():
@@ -44,7 +46,7 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/overlaped_variants/snps_{sample}/overlap/summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_paraviewer"]:
-        all.extend(expand("{output_dir}/annotated_variants/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/visualizations/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snpsift_nanocaller_{sample}/{sample}_snpsift_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -52,6 +54,9 @@ def get_mqc_files():
 
     if config["use_cpg_tools"]:
         all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+    if config["use_svtopo"]:
+        all.extend(expand("{output_dir}/visualizations/svtopo_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
     # option to disable all but the core workflow:
@@ -95,7 +100,7 @@ def get_output_files():
         all.extend(expand("{output_dir}/overlaped_variants/snps_{sample}/overlap/summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_paraviewer"]:
-        all.extend(expand("{output_dir}/annotated_variants/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/visualizations/paraviewer_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_snp_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/snpsift_nanocaller_{sample}/{sample}_snpsift_nanocaller_annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -105,6 +110,8 @@ def get_output_files():
         all.extend(expand("{output_dir}/variants/cpg_tools_{sample}/{sample}.combined.bed.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
+    if config["use_svtopo"]:
+        all.extend(expand("{output_dir}/visualizations/svtopo_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_secondary_options"]:
         all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -139,7 +146,7 @@ rule multiqc:
     resources:
         threads=lambda wildcards, attempt: attempt * 2,
         time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 8 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 4 + (attempt * 12)
     message:
         "Creating MultiQC Report..."
     params:
@@ -234,14 +241,15 @@ rule nanocaller: # output snps are already haplotaged
     log:
         "{output_dir}/logs/nanocaller_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 16,
-        time_hrs=lambda wildcards, attempt: attempt * 2,
+        threads=lambda wildcards, attempt: 12 + (attempt * 4),
+        time_hrs=lambda wildcards, attempt: attempt * 3,
         mem_gb=lambda wildcards, attempt: 48 + (attempt * 12)
     message:
         "Calling snps for {input.bam} using NanoCaller..."
     shell:
         """
         NanoCaller --bam {input.bam} --ref {input.reference} --cpu {resources.threads} --mode all --preset ccs --output {params.path_out} --prefix {params.prefix} --phase >{log} 2>&1
+        tabix -f {output} 2>{log}
         """    
 
 
@@ -271,6 +279,7 @@ rule bcftools_snp:
         bcftools mpileup -O b -f {input.reference} {input.bam} --threads {resources.threads} -o {params.in_between_file} -Q {params.min_qual_filter} -q {params.min_qual_filter} >{log} 2>&1
         bcftools call -mv --threads {resources.threads} -Oz -o {output.vcf_bcf} {params.in_between_file} >{log} 2>&1
         bcftools view {output.vcf_bcf} -i 'QUAL>={params.min_qual_filter}' --threads {resources.threads} -Oz -o {output.gz_file} --write-index >{log} 2>&1
+        tabix -f {output.gz_file} 2>{log}
         """    
 
 
@@ -327,6 +336,7 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
         sawfish joint-call --threads {resources.threads} --sample {params.output_dir} --output-dir {params.call_output} >{log} 2>&1
         rm -rf {params.output_dir} >{log} 2>&1 # no need to store in-between files
         mv {params.file_to_rename} {output} >{log} 2>&1
+        tabix -f {output.phased_cnv_and_svs} 2>{log}
         """    
 
 rule paraphase:
@@ -337,7 +347,8 @@ rule paraphase:
         done_flag= "{output_dir}/variants/paraphase_{sample}/{sample}_done.flag"
     params:
         prefix="{sample}_",
-        dir="{output_dir}/variants/paraphase_{sample}/"
+        dir="{output_dir}/variants/paraphase_{sample}/",
+        dir_simple="{output_dir}/variants/paraphase_{sample}",
     conda:
         "../envs/paraphase.yaml"
     log:
@@ -406,6 +417,7 @@ rule sniffles:
         sniffles --input {input.bam} --vcf {output.vcf} --reference {input.reference} --snf {params.snf} --allow-overwrite --threads {resources.threads} >{log} 2>&1
         # python3 -m sniffles2_plot -i {output.vcf} -o {params.plot_out} >{log} 2>&1
         bgzip -c {output.vcf} > {output.gziped_file} 2>{log}
+        tabix -f {output.gziped_file}  2>{log}
         """
 
 
@@ -417,21 +429,37 @@ rule hificnv:
     output:
         flag_done="{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag"
     params:
-        prefix="{output_dir}/variants/hificnv_{sample}/{sample}"
+        prefix="{output_dir}/variants/hificnv_{sample}/{sample}",
+        dir="{output_dir}/variants/hificnv_{sample}/"
         
     conda:
         "../envs/hificnv.yaml"
     log:
         "{output_dir}/logs/hificnv_{sample}.log"
     resources:
-        threads=lambda wildcards, attempt: attempt * 12,
+        threads=lambda wildcards, attempt: attempt * 10,
         time_hrs=lambda wildcards, attempt: attempt * 3,
-        mem_gb=lambda wildcards, attempt: 36 + (attempt * 12)
+        mem_gb=lambda wildcards, attempt: 12 + (attempt * 12)
 
     message:
         "Detecting CNVs in  {input.bam}..."
     shell:
         """
+        rm -rf {params.dir} >{log} 2>&1
+        mkdir -p {params.dir} >{log} 2>&1
         hificnv --bam {input.bam} --ref {input.reference} --threads {resources.threads} --output-prefix {params.prefix} >{log} 2>&1
-        touch {output}
+        touch {output} 
         """
+
+
+
+# todo:
+
+
+# - owl for pacbio microsatellites: https://github.com/PacificBiosciences/owl?tab=readme-ov-file but only once its installable via conda
+# - svtopo for sv visualisation: https://github.com/PacificBiosciences/SVTopo 
+# - https://github.com/PacificBiosciences/kivvi
+# - sv or snp comparison with https://github.com/PacificBiosciences/aardvark?tab=readme-ov-file 
+# - sawshark to annotate sawfish svs: https://github.com/PacificBiosciences/sawshark not on conda yet
+# - trgt annotation: https://github.com/PacificBiosciences/humanatee/blob/main/docs/trgt_tutorial.md#example-command not on conda yet
+# - svpack for sv annotation: https://github.com/PacificBiosciences/svpack 

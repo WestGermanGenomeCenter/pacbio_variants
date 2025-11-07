@@ -4,3 +4,4 @@ channels:
   - conda-forge
 dependencies:
   - hificnv=1.0.1
+  - tabix=1.11

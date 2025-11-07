@@ -43,7 +43,6 @@ rule truvari: # overlap unannotated svs
         cp {input.gziped_file} {params.snfs} 2>{log}
         tabix -f {params.sawf} 2>{log}
         tabix -f {params.snfs} 2>{log}
-
         truvari bench -b {params.snfs} -c {params.sawf} -f {input.reference} -o {params.dir} >{log} 2>&1
         """
 

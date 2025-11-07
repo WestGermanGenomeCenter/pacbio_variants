@@ -7,3 +7,4 @@ dependencies:
   - tabix=1.11
   - bcftools=1.22
   - gzip
+  - samtools=1.22.1

@@ -153,29 +153,3 @@ rule annotsv:
         """
 
 
-rule paraviewer:
-    input:
-        done_flag= "{output_dir}/variants/paraphase_{sample}/{sample}_done.flag",
-        reference=config["reference"], # must be fasta
-        bam="{output_dir}/bams/{sample}_aligned.bam"
-    output:
-        viewer_done="{output_dir}/annotated_variants/paraviewer_{sample}/{sample}_done.flag"
-    params:
-        prefix="{sample}_",
-        dir="{output_dir}/annotated_variants/paraviewer_{sample}/",
-        para_dir="{output_dir}/variants/paraphase_{sample}/"
-    conda:
-        "../envs/paraviewer.yaml"
-    log:
-        "{output_dir}/logs/paraviewer_{sample}.log"
-    resources:
-        threads=lambda wildcards, attempt: attempt * 2,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 4 + (attempt * 12)
-    message:
-        "Paralog annotation / visualization for {input.bam} ..."
-    shell:
-        """
-        paraviewer --outdir {params.dir} --paraphase-dir {params.para_dir} --genome hg38 >{log} 2>&1
-        touch {output.viewer_done}
-        """

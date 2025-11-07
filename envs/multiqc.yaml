@@ -1,6 +1,9 @@
 name: multiqc
 channels:
-  - bioconda
-  - conda-forge
+  - nodefaults
+  - http://conda.repo.test.hhu.de/bioconda
+  - http://conda.repo.test.hhu.de/conda-forge
+
 dependencies:
-  - multiqc=1.31
+  - multiqc=1.32
+  - typing_extensions

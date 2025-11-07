@@ -94,6 +94,8 @@ rule longphase: # phases snps, svs and more
         prefix="{output_dir}/variants/longphase_{sample}/{sample}_phased",
         prefix_bam="{output_dir}/variants/longphase_{sample}/{sample}_aligned_haplotaged",
         unpacked_snp="{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf",
+        packed_snps = "{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf.gz",
+        packed_svs = "{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf.gz",
     resources:
         threads=lambda wildcards, attempt: attempt * 12,
         time_hrs=lambda wildcards, attempt: attempt * 3,
@@ -105,4 +107,10 @@ rule longphase: # phases snps, svs and more
         gunzip -f {input.gz_file} -c >{params.unpacked_snp} 2>{log}
         longphase phase -s {params.unpacked_snp} -b {input.bam} -r {input.reference} --sv-file={input.svs} --pb --indels -t {resources.threads} -o {params.prefix} >{log} 2>&1
         longphase haplotag -r {input.reference} -s {output.vcf_phased} --sv-file {output.svs_phased} -b {input.bam} -t {resources.threads} -o {params.prefix_bam} >{log} 2>&1
+        bgzip -c {output.vcf_phased} >{params.packed_snps} 2>{log}
+        bgzip -c {output.svs_phased} >{params.packed_svs} 2>{log}
+        tabix -f {params.packed_svs} 2>{log}
+        tabix -f {params.packed_snps} 2>{log}
+        samtools index -@ {resources.threads} {output.long_hap_bam} 2>{log}
         """
+# bgzip -c input.vcf > output.vcf.gz

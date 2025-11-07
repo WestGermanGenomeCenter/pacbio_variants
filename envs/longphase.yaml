@@ -5,3 +5,4 @@ channels:
 dependencies:
   - longphase=2.0
   - tabix=1.11
+  - samtools=1.22.1
