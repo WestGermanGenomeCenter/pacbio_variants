@@ -8,6 +8,7 @@ mkdir -p $out
 start_time="`date +"%Y_%m_%d_%I_%M_%p"`"
 
 
+
 # print before execution what is on and what is off
 echo "Pre-run: options enabled: "
 echo "(config.yaml option set to True)"
@@ -27,24 +28,47 @@ echo ""
 # if the pipeline is not executed for the first time with that outputfolder, then move previous report/config/samplesheet/rulegraph into a new folder: outputfolder/logs/previous_executions/.
 
 if ls $out/config*.yaml 1> /dev/null 2>&1; then
-    echo "found files from previous execution, moving them to $out/logs/previous_executions"
+    echo "Found files from previous execution, moving them to $out/logs/previous_executions"
     mkdir -p $out/logs/previous_executions
     mv -f $out/pb_variants_* $out/logs/previous_executions/.
     mv -f $out/config*.yaml $out/logs/previous_executions/.
     mv -f $out/samplesheet*.csv $out/logs/previous_executions/.
-    echo "files from old execution moved."
+    mv -f $out/*.sha256 $out/logs/previous_executions/.
+    mv -f $out/*.filelist $out/logs/previous_executions/.
+
+    echo "Files from old execution moved."
 else
-    echo "no files from a previous execution found. starting..."
+    echo "No files from a previous execution found. starting..."
 fi 
 
-
-
+# for reproducibility, copy used config and samplesheet with timestamp into output dir
 cp config.yaml $out/config_$start_time.yaml
 cp samplesheet.csv $out/samplesheet_$start_time.csv
 
 # create a rulegraph before executing the actual pipeline
 snakemake -s rules/snakefile.smk --forceall --rulegraph | dot -Tpdf > $out/pb_variants_rulegraph.$start_time.pdf
-nice snakemake -c 96 --jobs 4 -s rules/snakefile.smk --use-conda --rerun-incomplete
+nice snakemake -c 120 --jobs 12 -s rules/snakefile.smk --use-conda --rerun-incomplete
 # after the run a report is created with task runtime and more info
 snakemake -s rules/snakefile.smk --report $out/pb_variants_report.$start_time.html
 
+
+
+
+if [[ "$1" == "--no-checksums" ]]; then
+    echo "Skipping checksum file creation."
+else
+    echo "Creating checksum and filelist. You can skip this step by providing the --no-checksums parameter: bash runPipeline --no-checksums ."
+    echo "Creating Filelist of $out"
+    find $out -type f -exec ls  -alth --time-style=long-iso {} \; | sort > $out/filelist_project_$start_time.filelist
+    echo "Last Task: creating checksums:"
+    echo "Creating checksumfile $out/checksums_$start_time.sha256 ..."
+    find $out -type f -exec sha256sum {} \; | sort > $out/checksums_$start_time.sha256
+    echo "Done."
+
+fi
+
+
+
+
+# create checksums of all files created
+echo "Completed the run."
