@@ -30,11 +30,11 @@ echo ""
 if ls $out/config*.yaml 1> /dev/null 2>&1; then
     echo "Found files from previous execution, moving them to $out/logs/previous_executions"
     mkdir -p $out/logs/previous_executions
-    mv -f $out/pb_variants_* $out/logs/previous_executions/.
-    mv -f $out/config*.yaml $out/logs/previous_executions/.
-    mv -f $out/samplesheet*.csv $out/logs/previous_executions/.
-    mv -f $out/*.sha256 $out/logs/previous_executions/.
-    mv -f $out/*.filelist $out/logs/previous_executions/.
+    mv -f $out/pb_variants_* $out/logs/previous_executions/. 2>/dev/null
+    mv -f $out/config*.yaml $out/logs/previous_executions/. 2>/dev/null
+    mv -f $out/samplesheet*.csv $out/logs/previous_executions/. 2>/dev/null
+    mv -f $out/*.sha256 $out/logs/previous_executions/. 2>/dev/null
+    mv -f $out/*.filelist $out/logs/previous_executions/. 2>/dev/null
 
     echo "Files from old execution moved."
 else
@@ -53,6 +53,7 @@ snakemake -s rules/snakefile.smk --report $out/pb_variants_report.$start_time.ht
 
 
 
+# create listfile and checksum file of complete output, can be switched off.
 
 if [[ "$1" == "--no-checksums" ]]; then
     echo "Skipping checksum file creation."
@@ -70,5 +71,4 @@ fi
 
 
 
-# create checksums of all files created
 echo "Completed the run."

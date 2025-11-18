@@ -58,10 +58,11 @@ if [[ "$1" == "--no-checksums" ]]; then
 else
     echo "Creating checksum and filelist. You can skip this step by providing the --no-checksums parameter: bash runPipeline --no-checksums ."
     echo "Creating Filelist of $out"
-    find $out -type f -exec ls  -alth --time-style=long-iso {} \; | sort > $out/filelist_project_$start_time.filelist
+    cd $out # so that not the complete path is in the list
+    find . -type f -exec ls  -alth --time-style=long-iso {} \; | sort > filelist_project_$start_time.filelist
     echo "Last Task: creating checksums:"
-    echo "Creating checksumfile $out/checksums_$start_time.sha256 ..."
-    find $out -type f -exec sha256sum {} \; | sort > $out/checksums_$start_time.sha256
+    echo "Creating checksumfile checksums_$start_time.sha256 ..."
+    find . -type f -exec sha256sum {} \; | sort > checksums_$start_time.sha256
     echo "Done."
 
 fi
@@ -69,5 +70,4 @@ fi
 
 
 
-# create checksums of all files created
 echo "Completed the run."

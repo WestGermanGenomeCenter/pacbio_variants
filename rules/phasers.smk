@@ -16,7 +16,7 @@ output_dir=config["output_dir"]
 
 
 
-
+# hiphase can be used with deepvariant and sawfish apparently
 rule hiphase: # phases snps, svs and more but is not compatible with eiter bcftools or sniffles output files
     input:
         reference=config["reference"], # must be fasta
@@ -113,4 +113,3 @@ rule longphase: # phases snps, svs and more
         tabix -f {params.packed_snps} 2>{log}
         samtools index -@ {resources.threads} {output.long_hap_bam} 2>{log}
         """
-# bgzip -c input.vcf > output.vcf.gz
