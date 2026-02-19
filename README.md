@@ -136,8 +136,9 @@ Minimalistic execution (and bcftools instead of Deepvariant) with only mandatory
 
 ## roadmap:
   trio calling : deeptrio, glnexus  -> only if there are requests for this. 
-  assembly : hifiasm or similar -> only if there are requests for this. 
-  str profiling: strkit, currently testing
+  annotation improvements: incorporate many rules from https://github.com/ESR-NZ/vcf_annotation_pipeline if usable
+  new tools: check for useful tools in https://raw.githubusercontent.com/genomic-medicine-sweden/nallo/dev/docs/images/nallo_metromap.png 
+
 
 ## why this work is being done:
 - nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
