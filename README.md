@@ -160,3 +160,9 @@ Minimalistic execution (and bcftools instead of Deepvariant) with only mandatory
 - smrtlinks internal pipeline:
     - singularity not working, limited tool options
     - not all wanted tools included
+
+- nallo: https://github.com/genomic-medicine-sweden/nallo
+    - no real reason other than its nextflow instead of snakemake (and i did not find it before the pipeline was already written)
+    - might take over some neat parts of it
+    - might use that workflow instead, will test how results compare (probably not much since included tools are very similar)
+    - development would then be not on my shoulders, so thats nice.

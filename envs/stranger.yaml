@@ -1,0 +1,8 @@
+name: stranger
+channels:
+  - bioconda
+  - conda-forge
+dependencies: 
+  - stranger=0.10.0 # need to change to 5.3 soon
+  - tabix=1.11
+  - gzip

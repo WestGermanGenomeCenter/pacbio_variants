@@ -38,8 +38,8 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     
     if config["use_sv_annotation"]:
-        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.csv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
     if config["use_overlaps"]:
         all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),

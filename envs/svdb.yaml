@@ -1,0 +1,8 @@
+name: svdb
+channels:
+  - bioconda
+  - conda-forge
+dependencies: 
+  - svdb=2.8.3 # need to change to 5.3 soon
+  - tabix=1.11
+  - gzip

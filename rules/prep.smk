@@ -169,6 +169,7 @@ rule fastqc:
         "reporting read quality input for {input.bam}..."
     shell:
         """
+        mkdir -p {params.output_dir} >> {log} 2>&1
         fastqc --threads {resources.threads} {input.bam} -o {params.output_dir}  --memory 10000 >> {log} 2>&1
         """
 

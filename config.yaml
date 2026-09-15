@@ -18,10 +18,8 @@ use_paraviewer: False         # only enable for hg38, currently not compatible w
 use_svtopo: False             # visualizes svs called from sawfish, needs the exclude regions file from below
 
 
-
-
-
 # below are data files and folders. only change if needed / not using any hg38
+gnomad_svdb: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/gnomad.v4.1.sv.sites.vcf.gz" # needs also to be indexed
 annotsv_data_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/annotsv_data/annotsv_353/AnnotSV" # this needs to be created by annotsv itself, the installation independent from conda: use the official installation instructions here: https://github.com/lgmgeo/AnnotSV/blob/master/share/doc/AnnotSV/quickstart.md  
 barcodes_lima_fasta: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/input/pacbio_barcodes.fasta"
 sif_image_deepvariant: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/deepvariant_1.9.0.sif" # get this by doing: singularity pull docker://google/deepvariant:latest, only needed if deepvariant is used and the hpc is not used
