@@ -3,5 +3,5 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - mitorsaw=0.2.3
+  - mitorsaw=0.2.14
   - tabix=1.11

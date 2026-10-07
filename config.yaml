@@ -16,7 +16,7 @@ use_overlaps: True            # overlaps svs and snps using rtg-tools for snps (
 # below are the tertiary tools
 use_paraviewer: False         # only enable for hg38, currently not compatible with HILBERT
 use_svtopo: False             # visualizes svs called from sawfish, needs the exclude regions file from below
-
+use_colorsdb: True            # use svdb to add colorsdb data to sv annotation, useful for rare sv classification
 
 # below are data files and folders. only change if needed / not using any hg38
 gnomad_svdb: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/gnomad.v4.1.sv.sites.vcf.gz" # needs also to be indexed
@@ -31,3 +31,5 @@ snp_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/
 sv_annotation_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/ALL.wgs.mergedSV.v8.20130502.svs.genotypes.GRCh38.vcf"    # Path to SV annotation file, .vcf 
 vep_cache_dir: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/vep_hg38"
 svtopo_exclude_regions: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/cnv.excluded_regions.hg38.bed.gz"
+trgt_catalog_file: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/stranger_repeat_catalog_grch38.json" # only needed if stranger is enabled to annotate trgt data
+colorsdb_sv_vcf: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/colorsdb/CoLoRSdb.GRCh38.v1.2.0.pbsv.jasmine.vcf.gz"

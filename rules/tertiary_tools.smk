@@ -75,3 +75,58 @@ rule paraviewer:
         paraviewer --outdir {params.dir} --paraphase-dir {params.para_dir} --genome hg38 >{log} 2>&1
         touch {output.viewer_done}
         """
+
+
+# chromograph, this is test-only for now
+
+
+
+rule mosdepth_windows:
+    input:
+        long_hap_bam="{output_dir}/variants/longphase_{sample}/{sample}_aligned_haplotaged.bam",
+    output:
+        bed = config["output_dir"] + "/qc/{sample}/{sample}.windows.regions.bed.gz"
+    params:
+        prefix = config["output_dir"] + "/qc/{sample}/{sample}.windows",
+        step = config.get("chromograph_step", 5000)
+    conda:
+        "../envs/mosdepth.yaml"
+    log:
+        config["output_dir"] + "/logs/mosdepth_windows_{sample}.log"
+    resources:
+        threads = lambda wildcards, attempt: 4,
+        time_hrs = lambda wildcards, attempt: attempt * 2,
+        mem_gb = lambda wildcards, attempt: 4 * attempt
+    message:
+        "Windowed coverage for chromograph, sample {wildcards.sample}..."
+    shell:
+        "mosdepth -t {resources.threads} --by {params.step} --no-per-base --fast-mode {params.prefix} {input.bam} > {log} 2>&1"
+
+
+rule chromograph_coverage:
+    input:
+        bed = config["output_dir"] + "/qc/{sample}/{sample}.windows.regions.bed.gz"
+    output:
+        directory(config["output_dir"] + "/qc/{sample}/plots")
+    params:
+        script = os.path.join(workflow.basedir, "scripts", "mosdepth_regions_to_wig.py"),
+        step = config.get("chromograph_step", 5000),
+        strip = "1" if config.get("chromograph_strip_chr", True) else "0",
+        norm = "--norm" if config.get("chromograph_norm", True) else "",
+        wig = config["output_dir"] + "/qc/{sample}/{sample}.coverage.wig"
+    conda:
+        "../envs/mosdepth.yaml"
+    log:
+        config["output_dir"] + "/logs/chromograph_{sample}.log"
+    resources:
+        threads = lambda wildcards, attempt: 1,
+        time_hrs = lambda wildcards, attempt: attempt * 1,
+        mem_gb = lambda wildcards, attempt: 4 * attempt
+    message:
+        "Chromograph coverage plots for sample {wildcards.sample}..."
+    shell:
+        """
+        python {params.script} {input.bed} {params.wig} {params.step} {params.strip}
+        mkdir -p {output}
+        chromograph --coverage {params.wig} --step {params.step} {params.norm} --euploid --outd {output} > {log} 2>&1
+        """

@@ -94,6 +94,8 @@ def get_output_files():
     if config["use_sv_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
 
     if config["use_overlaps"]:
         all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -117,6 +119,11 @@ def get_output_files():
         all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/qc/{sample}/plots", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+#         tbi2="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi"
+
+
 
     # all non-optional output, including multiqc
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),

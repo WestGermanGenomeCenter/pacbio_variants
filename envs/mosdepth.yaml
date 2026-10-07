@@ -4,3 +4,4 @@ channels:
   - conda-forge
 dependencies:
   - mosdepth=0.3.11
+  - chromograph

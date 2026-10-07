@@ -143,8 +143,6 @@ Minimalistic execution (and bcftools instead of Deepvariant) with only mandatory
 ## why this work is being done:
 - nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
     - does not run without sudo for us
-    - seems not mature enough (imho)
-    - not newest tools included
     - not all wanted tools included
 
 - pacbios wdl-based workflow: https://github.com/PacificBiosciences/HiFi-somatic-WDL

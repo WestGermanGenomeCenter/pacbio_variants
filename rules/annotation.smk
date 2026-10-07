@@ -111,7 +111,7 @@ rule vep:
         vep --offline --dir_cache {params.cache_dir} -i {params.nanocaller_unzipped} -o {output.nanoc_snp} --vcf  --everything --force_overwrite --fork {resources.threads} --warning_file {log} >>{log} 2>&1
         """
 
-
+# new idea: first colorsdb, then annotsv?
 rule annotsv:
     input:
         svs_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
