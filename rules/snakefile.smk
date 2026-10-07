@@ -17,6 +17,7 @@ include:"prep.smk"
 include:"phasers.smk"
 include:"methylation.smk"
 include:"annotation.smk"
+include:"more_annotation.smk"
 include:"overlap.smk"
 include:"tertiary_tools.smk"
 
@@ -38,9 +39,9 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     
     if config["use_sv_annotation"]:
-        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.csv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
+# P1519_pb_variants_test_new/annotated_variants/sansa_svs_cnvs_sawfish_all_smrtcells_1519_bc2068/all_smrtcells_1519_bc2068_sawfish_annotated.csv.gz
     if config["use_overlaps"]:
         all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/overlaped_variants/snps_{sample}/overlap/summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -76,7 +77,7 @@ def get_mqc_files():
     all.extend(expand("{output_dir}/mosdepth/{sample}.mosdepth.summary.txt", sample=filenames_without_extension, output_dir=config["output_dir"])),   
     return all
 
-
+# P1519_pb_variants_test_new/annotated_variants/sansa_svs_cnvs_sawfish_all_smrtcells_1519_bc2068/all_smrtcells_1519_bc2068_sawfish_annotated.csv.gz
 def get_output_files():
     all=list()
     if config["use_deepvariant"]:
@@ -90,12 +91,12 @@ def get_output_files():
 
     if config["use_mitosaw"]:
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-    
     if config["use_sv_annotation"]:
         all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi", sample=filenames_without_extension, output_dir=config["output_dir"])),
-
+#
+#
 
     if config["use_overlaps"]:
         all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -323,6 +324,8 @@ rule sawfish: # svs and cnv, instead of pbsv + more does only minimal phasing in
         bam="{output_dir}/bams/{sample}_aligned.bam"
     output:
         phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz" 
+        #         phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", 
+
     params:
         output_dir="{output_dir}/variants/sawfish_{sample}",
         call_output="{output_dir}/variants/sawfish_phased_{sample}",

@@ -38,7 +38,7 @@ rule sansa: # annotate svs
         sansa annotate -d {params.annotation_sv_file} {input.svs_phased} -a {output.annotated_bcf} -o {output.tsv} >{log} 2>&1
         sansa annotate -d {params.annotation_sv_file} {input.phased_cnv_and_svs} -a {output.sawfish_bcf} -o {output.sawfish_tsv} >{log} 2>&1
         """
-
+# P1519_pb_variants_test_new/annotated_variants/sansa_svs_cnvs_sawfish_all_smrtcells_1519_bc2068/all_smrtcells_1519_bc2068_sawfish_annotated.csv.gz
 
 rule snpsift: # snps
     input:
@@ -119,6 +119,7 @@ rule annotsv:
     output:
         snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.vcf",
         sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf",
+        #
     conda:
         "../envs/annotsv.yaml"
     log:

@@ -85,14 +85,14 @@ rule mosdepth_windows:
     input:
         long_hap_bam="{output_dir}/variants/longphase_{sample}/{sample}_aligned_haplotaged.bam",
     output:
-        bed = config["output_dir"] + "/qc/{sample}/{sample}.windows.regions.bed.gz"
+        bed = "{output_dir}/qc/{sample}/{sample}.windows.regions.bed.gz"
     params:
-        prefix = config["output_dir"] + "/qc/{sample}/{sample}.windows",
+        prefix = "{output_dir}/qc/{sample}/{sample}.windows",
         step = config.get("chromograph_step", 5000)
     conda:
         "../envs/mosdepth.yaml"
     log:
-        config["output_dir"] + "/logs/mosdepth_windows_{sample}.log"
+        "{output_dir}/logs/mosdepth_windows_{sample}.log"
     resources:
         threads = lambda wildcards, attempt: 4,
         time_hrs = lambda wildcards, attempt: attempt * 2,
@@ -105,19 +105,19 @@ rule mosdepth_windows:
 
 rule chromograph_coverage:
     input:
-        bed = config["output_dir"] + "/qc/{sample}/{sample}.windows.regions.bed.gz"
+        bed = "{output_dir}/qc/{sample}/{sample}.windows.regions.bed.gz"
     output:
-        directory(config["output_dir"] + "/qc/{sample}/plots")
+        directory("{output_dir}/qc/{sample}/plots")
     params:
         script = os.path.join(workflow.basedir, "scripts", "mosdepth_regions_to_wig.py"),
         step = config.get("chromograph_step", 5000),
         strip = "1" if config.get("chromograph_strip_chr", True) else "0",
         norm = "--norm" if config.get("chromograph_norm", True) else "",
-        wig = config["output_dir"] + "/qc/{sample}/{sample}.coverage.wig"
+        wig = "{output_dir}/qc/{sample}/{sample}.coverage.wig"
     conda:
         "../envs/mosdepth.yaml"
     log:
-        config["output_dir"] + "/logs/chromograph_{sample}.log"
+        "{output_dir}/logs/chromograph_{sample}.log"
     resources:
         threads = lambda wildcards, attempt: 1,
         time_hrs = lambda wildcards, attempt: attempt * 1,
