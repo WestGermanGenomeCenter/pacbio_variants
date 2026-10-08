@@ -1,4 +1,4 @@
-name: lima
+name: mosdeph
 channels:
   - bioconda
   - conda-forge

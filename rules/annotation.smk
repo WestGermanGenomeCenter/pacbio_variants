@@ -145,10 +145,12 @@ rule annotsv:
         mkdir -p {params.dir_out_snfls} >>{log} 2>&1 # annotsv needs these dirs to be present before it starts
         mkdir -p {params.dir_out_sawfs} >>{log} 2>&1
         gunzip {input.phased_cnv_and_svs} -f -c >{params.unziped_safw}
-        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.parental_dir} -outputFile {params.output_file1}  >>{log} 2>&1        
-        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {params.unziped_safw} -outputDir {params.parental_dir} -outputFile {params.output_file2}  >>{log} 2>&1
-        mv {params.output_file1} {output.snfls} >>{log} 2>&1
-        mv {params.output_file2} {output.sawfs} >>{log} 2>&1
+        #AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.parental_dir} -outputFile {params.output_file1}  >>{log} 2>&1        
+        #AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {params.unziped_safw} -outputDir {params.parental_dir} -outputFile {params.output_file2}  >>{log} 2>&1
+        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.parental_dir} -outputFile {output.snfls}  >>{log} 2>&1        
+        AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {params.unziped_safw} -outputDir {params.parental_dir} -outputFile {output.sawfs}  >>{log} 2>&1
+        #mv {params.output_file1} {output.snfls} >>{log} 2>&1
+        #mv {params.output_file2} {output.sawfs} >>{log} 2>&1
         rm -f {params.parental_dir}/*unannotated.vcf >>{log} 2>&1
         rm -f {params.parental_dir}/*.bash >>{log} 2>&1
         rm -f {params.parental_dir}/*.bed >>{log} 2>&1

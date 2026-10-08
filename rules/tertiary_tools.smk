@@ -96,11 +96,11 @@ rule mosdepth_windows:
     resources:
         threads = lambda wildcards, attempt: 4,
         time_hrs = lambda wildcards, attempt: attempt * 2,
-        mem_gb = lambda wildcards, attempt: 4 * attempt
+        mem_gb = lambda wildcards, attempt: 12 * attempt
     message:
         "Windowed coverage for chromograph, sample {wildcards.sample}..."
     shell:
-        "mosdepth -t {resources.threads} --by {params.step} --no-per-base --fast-mode {params.prefix} {input.bam} > {log} 2>&1"
+        "mosdepth -t {resources.threads} --by {params.step} --no-per-base --fast-mode {params.prefix} {input.long_hap_bam} > {log} 2>&1"
 
 
 rule chromograph_coverage:
@@ -109,7 +109,7 @@ rule chromograph_coverage:
     output:
         directory("{output_dir}/qc/{sample}/plots")
     params:
-        script = os.path.join(workflow.basedir, "scripts", "mosdepth_regions_to_wig.py"),
+        script = "scripts/mosdepth_regions_to_wig.py",
         step = config.get("chromograph_step", 5000),
         strip = "1" if config.get("chromograph_strip_chr", True) else "0",
         norm = "--norm" if config.get("chromograph_norm", True) else "",

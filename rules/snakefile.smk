@@ -120,7 +120,7 @@ def get_output_files():
         all.extend(expand("{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/qc/{sample}/plots", sample=filenames_without_extension, output_dir=config["output_dir"])),
+       # all.extend(expand("{output_dir}/qc/{sample}/plots", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 #         tbi2="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi"
 
