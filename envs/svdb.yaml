@@ -6,3 +6,4 @@ dependencies:
   - svdb=2.12.0 # need to change to 5.3 soon
   - tabix=1.11
   - gzip
+  - bcftools

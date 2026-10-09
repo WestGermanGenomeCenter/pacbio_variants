@@ -38,61 +38,61 @@ rule stranger_trgt:
         """
 
 
-rule colorsdb_sv:
-    input:
-        svs_phased="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.vcf",
-        phased_cnv_and_svs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf",
-        db=config.get("colorsdb_sv_vcf", [])
-    output:
-        vcf1="{output_dir}/annotated_variants/colorsdb_longphase_{sample}/{sample}_longphase_colorsdb.vcf.gz",
-        tbi1="{output_dir}/annotated_variants/colorsdb_longphase_{sample}/{sample}_longphase_colorsdb.vcf.gz.tbi",
-        vcf2="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz",
-        tbi2="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi"
-    params:
-        overlap=config.get("colorsdb_sv_overlap", 0.6),
-        bnd=config.get("colorsdb_sv_bnd_distance", 10000)
-    conda:
-        "../envs/svdb.yaml"
-    log:
-        "{output_dir}/logs/colorsdb_sv_{sample}.log"
-    resources:
-        threads=lambda wildcards, attempt: 1,
-        time_hrs=lambda wildcards, attempt: attempt * 1,
-        mem_gb=lambda wildcards, attempt: 4 * attempt
-    message:
-        "Adding CoLoRSdb frequencies to SVs of {wildcards.sample}..."
-    shell:
-        """
-        svdb --query \
-            --query_vcf {input.svs_phased} \
-            --db {input.db} \
-            --in_occ AC \
-            --in_frq AF \
-            --out_occ colorsdb_ac \
-            --out_frq colorsdb_af \
-            --overlap {params.overlap} \
-            --bnd_distance {params.bnd} \
-            > {output.vcf1} \
-            2> {log}
-
-        tabix -p vcf {output.vcf1} \
-            >> {log} 2>&1
-
-        svdb --query \
-            --query_vcf {input.phased_cnv_and_svs} \
-            --db {input.db} \
-            --in_occ AC \
-            --in_frq AF \
-            --out_occ colorsdb_ac \
-            --out_frq colorsdb_af \
-            --overlap {params.overlap} \
-            --bnd_distance {params.bnd} \
-            > {output.vcf2} \
-            2>> {log}
-
-        tabix -p vcf {output.vcf2} \
-            >> {log} 2>&1
-        """
+#rule colorsdb_sv:
+#    input:
+#        svs_phased="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.vcf",
+#        phased_cnv_and_svs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf",
+#        db=config.get("colorsdb_sv_vcf", [])
+#    output:
+#        vcf1="{output_dir}/annotated_variants/colorsdb_longphase_{sample}/{sample}_longphase_colorsdb.vcf.gz",
+#        tbi1="{output_dir}/annotated_variants/colorsdb_longphase_{sample}/{sample}_longphase_colorsdb.vcf.gz.tbi",
+#        vcf2="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz",
+#        tbi2="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi"
+#    params:
+#        overlap=config.get("colorsdb_sv_overlap", 0.6),
+#        bnd=config.get("colorsdb_sv_bnd_distance", 10000)
+#    conda:
+#        "../envs/svdb.yaml"
+#    log:
+#        "{output_dir}/logs/colorsdb_sv_{sample}.log"
+#    resources:
+#        threads=lambda wildcards, attempt: 1,
+#        time_hrs=lambda wildcards, attempt: attempt * 1,
+#        mem_gb=lambda wildcards, attempt: 4 * attempt
+#    message:
+#        "Adding CoLoRSdb frequencies to SVs of {wildcards.sample}..."
+#    shell:
+#        """
+#        svdb --query \
+#            --query_vcf {input.svs_phased} \
+#            --db {input.db} \
+#            --in_occ AC \
+#            --in_frq AF \
+#            --out_occ colorsdb_ac \
+#            --out_frq colorsdb_af \
+#            --overlap {params.overlap} \
+#            --bnd_distance {params.bnd} \
+#            > {output.vcf1} \
+#            2> {log}
+#
+#        tabix -p vcf {output.vcf1} \
+#            >> {log} 2>&1
+#
+#        svdb --query \
+#            --query_vcf {input.phased_cnv_and_svs} \
+#            --db {input.db} \
+#            --in_occ AC \
+#            --in_frq AF \
+#            --out_occ colorsdb_ac \
+#            --out_frq colorsdb_af \
+#            --overlap {params.overlap} \
+#            --bnd_distance {params.bnd} \
+#            > {output.vcf2} \
+#            2>> {log}
+#
+#        tabix -p vcf {output.vcf2} \
+#            >> {log} 2>&1
+#        """
 
 
 

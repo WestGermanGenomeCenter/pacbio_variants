@@ -39,8 +39,9 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     
     if config["use_sv_annotation"]:
-        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
 # P1519_pb_variants_test_new/annotated_variants/sansa_svs_cnvs_sawfish_all_smrtcells_1519_bc2068/all_smrtcells_1519_bc2068_sawfish_annotated.csv.gz
     if config["use_overlaps"]:
         all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
@@ -92,11 +93,13 @@ def get_output_files():
     if config["use_mitosaw"]:
         all.extend(expand("{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     if config["use_sv_annotation"]:
-        all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        all.extend(expand("{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi", sample=filenames_without_extension, output_dir=config["output_dir"])),
-#
-#
+      #  all.extend(expand("{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
+
+
+
+
 
     if config["use_overlaps"]:
         all.extend(expand("{output_dir}/overlaped_variants/svs_{sample}/{sample}_sniffles_vs_sawfish/summary.json", sample=filenames_without_extension, output_dir=config["output_dir"])),
