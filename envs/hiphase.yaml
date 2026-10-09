@@ -3,6 +3,6 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - hiphase=1.5.0
+  - hiphase=1.7.0
   - tabix=1.11
   - bcftools=1.22

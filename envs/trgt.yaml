@@ -3,5 +3,5 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - trgt=4.0.0
+  - trgt=5.1.0
   - tabix=1.11

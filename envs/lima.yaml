@@ -3,6 +3,6 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - lima=2.13.0
+  - lima=26.2.1
   - samtools=1.22.1
   - pbtk=3.5.0

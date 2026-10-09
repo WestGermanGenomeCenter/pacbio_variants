@@ -5,3 +5,8 @@ channels:
 dependencies:
   - rtg-tools=3.13 
   - tabix=1.11
+  - bcftools 
+  - python 
+  - pandas 
+  - numpy 
+  - matplotlib

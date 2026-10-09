@@ -6,9 +6,9 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - paraviewer
+  - paraviewer=1.1.1
   - minimap2=2.30
   - samtools=1.22.1
-  - igv
-  - igv-reports
+  - igv=2.19.8
+  - igv-reports=1.16.0
   - xvfbwrapper

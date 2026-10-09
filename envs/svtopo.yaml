@@ -3,4 +3,4 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - svtopo=0.3.0
+  - svtopo=0.3.1

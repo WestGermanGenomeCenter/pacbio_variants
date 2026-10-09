@@ -6,6 +6,6 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - paraphase=3.3.4
-  - minimap2=2.30
+  - paraphase=4.1.0
+  - minimap2=2.31
   - samtools=1.22.1

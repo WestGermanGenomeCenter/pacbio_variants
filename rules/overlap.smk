@@ -106,3 +106,34 @@ rule snp_overlap: # snps
         rtg vcfeval -t {params.ref_file} -b {params.snps} -c {params.nano} -o {params.out_dir} >{log} 2>&1
         """
  
+rule variants_report:
+    input:
+        svs="{output_dir}/variants/sniffles_{sample}/{sample}_svs.vcf",
+        mit_vcf="{output_dir}/variants/mitorsaw_{sample}/{sample}_mitochondiral_variants.vcf.gz",
+        phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", 
+        done_flag= "{output_dir}/variants/paraphase_{sample}/{sample}_done.flag",
+        vcf="{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz",
+        flag_done="{output_dir}/variants/hificnv_{sample}/{sample}_hificnv_done.flag",
+        gz_file= "{output_dir}/variants/deepvariant_{sample}/{sample}_variants.vcf.gz" if config["use_deepvariant"] else "{output_dir}/variants/bcftools_{sample}/{sample}_bcft_snps.vcf.gz",
+        vcf_nano="{output_dir}/variants/nanocaller_{sample}/{sample}_nanocaller.vcf.gz" # same here
+    output:
+        summary="{output_dir}/overlaped_variants/{sample}/{sample}_variant_overlap.pdf"
+    conda:
+        "../envs/rtgtools.yaml"
+    log:
+        "{output_dir}/logs/report_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 2,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 22)
+    params:
+        out_dir="{output_dir}/overlaped_variants/{sample}/",
+        variants_dir="{output_dir}/variants",
+        sample_name = "{sample}",
+        ref_file=config["reference"], # must be fasta
+    message:
+        "creating variants report..."
+    shell:
+        """
+        python scripts/variants_report.py -d {params.variants_dir} -o {params.out_dir} -s {params.sample_name} --ref {params.ref_file} >{log} 2>&1
+        """

@@ -7,4 +7,4 @@ channels:    # apparently there is a bcftools error if installed via conda throu
 #  - http://conda.repo.test.hhu.de/main
 dependencies:
   - samtools=1.22.1
-  - kraken2=2.1.6
+  - kraken2=2.17.2

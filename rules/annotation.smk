@@ -117,7 +117,7 @@ rule annotsv: # last step, tsv output only (avoids the tsv->vcf conversion bug i
     resources:
         threads=lambda wildcards, attempt: attempt * 2,
         time_hrs=lambda wildcards, attempt: attempt * 2,
-        mem_gb=lambda wildcards, attempt: 16 + (attempt * 10)
+        mem_gb=lambda wildcards, attempt: 26 + (attempt * 10)
     params:
         annotsv_data=config["annotsv_data_dir"]
     message:
