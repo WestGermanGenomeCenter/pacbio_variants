@@ -576,9 +576,15 @@ def paraphase_rows(obj):
         for k, val in v.items():
             if k.endswith("_cn") and k not in row and isinstance(val, (int, float, str, type(None))):
                 row[k] = val
+        for k in ("highest_total_cn", "phasing_success"):
+            if k in v and isinstance(v[k], (int, float, str, bool, type(None))):
+                row[k] = v[k]
         fh = v.get("final_haplotypes")
         if isinstance(fh, (list, dict)):
             row["haplotypes"] = len(fh)
+        fu = v.get("fusions_called")
+        if isinstance(fu, (list, dict)):
+            row["fusions"] = len(fu)
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -847,18 +853,29 @@ def table_page(pdf, title, tables):
     plt.close(fig)
 
 
-def small_table(ax, df, fontsize=7.5, title=None):
+def clip(text, n):
+    text = str(text)
+    return text if len(text) <= n else text[: n - 1] + "…"
+
+
+def small_table(ax, df, fontsize=7.5, title=None, maxlen=28):
+    """Table that always fits its panel: long cells are clipped and the font shrinks with the content."""
     ax.axis("off")
     if title:
         ax.set_title(title, loc="left", fontsize=9)
     if df is None or df.empty:
         ax.text(0, 0.9, "nothing to show", transform=ax.transAxes, fontsize=8)
         return
-    tbl = ax.table(cellText=df.astype(str).values.tolist(), colLabels=list(df.columns), loc="upper left", cellLoc="left")
+    cells = [[clip(c, maxlen) for c in row] for row in df.astype(str).values.tolist()]
+    heads = [clip(c, maxlen) for c in df.columns]
+    widths = [max(len(h), *(len(r[i]) for r in cells)) for i, h in enumerate(heads)]
+    ax_w_in = ax.get_position().width * ax.figure.get_figwidth()
+    fs = min(fontsize, ax_w_in * 72 / (0.62 * (sum(widths) + 2.2 * len(widths))))
+    h = min(1.0, 0.06 * (len(cells) + 1))
+    tbl = ax.table(cellText=cells, colLabels=heads, cellLoc="left", bbox=[0, 1 - h, 1, h])
     tbl.auto_set_font_size(False)
-    tbl.set_fontsize(fontsize)
-    tbl.scale(1, 1.25)
-    tbl.auto_set_column_width(list(range(len(df.columns))))
+    tbl.set_fontsize(max(fs, 4.5))
+    tbl.auto_set_column_width(list(range(len(heads))))
 
 
 # --------------------------------------------------------------------------------------
@@ -1105,7 +1122,7 @@ def mito_gene(pos):
 
 def mito_page(pdf, sample, V, cov, hap_scalars, args):
     fig = plt.figure(figsize=PAGE)
-    gs = fig.add_gridspec(4, 2, height_ratios=[1.6, 0.8, 2, 2.4], hspace=0.55, wspace=0.12,
+    gs = fig.add_gridspec(4, 2, height_ratios=[1.6, 0.8, 2, 2.4], hspace=0.55, wspace=0.18, width_ratios=[1, 1.3],
                           left=0.07, right=0.985, top=0.9, bottom=0.05)
     fig.suptitle(f"{sample}: mitorsaw chrM variants ({len(V)}); VCF FORMAT tags: {V.attrs.get('format_tags', '?')}",
                  x=0.02, ha="left", fontsize=11, fontweight="bold")
@@ -1146,22 +1163,46 @@ def mito_page(pdf, sample, V, cov, hap_scalars, args):
                         "AF": top["af"].round(3), "DP": top["dp"].astype("Int64"), "gene": [mito_gene(p) for p in top["pos"]]})
     small_table(axt, tab, 7, "variants (first 16 by position)")
     axs = fig.add_subplot(gs[3, 1])
-    items = list(hap_scalars.items())[:14]
-    small_table(axs, pd.DataFrame({"hap_stats.json": [k[:34] for k, _ in items], "value": [str(v)[:24] for _, v in items]}) if items else None,
-                7, "haplotype statistics (as found in the JSON)")
+    items = list(hap_scalars.items())[:16]
+    small_table(axs, pd.DataFrame({"hap_stats.json": [k for k, _ in items], "value": [v for _, v in items]}) if items else None,
+                7, f"haplotype statistics (as found in the JSON, {len(items)} of {len(hap_scalars)})", maxlen=64)
     pdf.savefig(fig)
     plt.close(fig)
 
 
-def paraphase_page(pdf, sample, P):
-    fig = plt.figure(figsize=PAGE)
-    gs = fig.add_gridspec(1, 2, width_ratios=[1, 2.2], wspace=0.15, left=0.06, right=0.985, top=0.86, bottom=0.08)
-    cn = pd.to_numeric(P.get("total_cn"), errors="coerce") if "total_cn" in P else pd.Series(dtype=float)
+def paraphase_page(pdf, sample, P, rows_per_page=34, max_pages=4):
     def nice(v):
         return int(v) if isinstance(v, float) and v.is_integer() else v
+
+    cn = pd.to_numeric(P["total_cn"], errors="coerce") if "total_cn" in P else pd.Series(np.nan, index=P.index)
     smn = {c: nice(P[c].dropna().iloc[0]) for c in P.columns if c.startswith("smn") and c.endswith("_cn") and P[c].notna().any()}
+    # columns with the same value in every region (e.g. genome_depth) go into the subtitle, not the table
+    consts, cols = {}, []
+    for c in P.columns:
+        vals = P[c].dropna()
+        if c == "region" or c == "total_cn":
+            cols.append(c)
+        elif len(vals) == len(P) and vals.astype(str).nunique() == 1:
+            consts[c] = nice(vals.iloc[0])  # identical in every region
+        elif len(vals) >= 0.25 * len(P) and vals.astype(str).nunique() > 1:
+            cols.append(c)  # sparse columns (e.g. smn1_cn, only in one region) are left out
+    first = [c for c in ("region", "total_cn", "gene_cn", "highest_total_cn", "region_depth", "phasing_success", "haplotypes") if c in cols]
+    cols = (first + [c for c in cols if c not in first])[:8]
+    flag = (cn.notna() & cn.ne(2)) if cn.notna().any() else pd.Series(True, index=P.index)
+    if "phasing_success" in P:
+        flag = flag | P["phasing_success"].astype(str).str.lower().eq("false")
+    sel = P[flag].sort_values("region")[cols].astype(object).map(lambda v: "-" if pd.isna(v) else nice(v))
+    chunks = [sel.iloc[i:i + rows_per_page] for i in range(0, max(len(sel), 1), rows_per_page)][:max_pages]
+    if len(sel) > rows_per_page * max_pages:
+        warn(f"{sample}: paraphase table truncated to {rows_per_page * max_pages} of {len(sel)} regions (see the TSV)")
+
+    fig = plt.figure(figsize=PAGE)
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 2.4], wspace=0.12, left=0.06, right=0.985, top=0.84, bottom=0.07)
     fig.suptitle(f"{sample}: paraphase, {len(P)} regions" + ("   |   " + ", ".join(f"{k}={v}" for k, v in smn.items()) if smn else ""),
                  x=0.02, ha="left", fontsize=11.5, fontweight="bold")
+    if consts:
+        fig.text(0.02, 0.9, "same value in every region (left out of the table): " +
+                 ", ".join(f"{k}={v}" for k, v in consts.items()), fontsize=8, color="#555555")
     ax = fig.add_subplot(gs[0])
     if cn.notna().any():
         counts = cn.dropna().astype(int).value_counts().sort_index()
@@ -1175,13 +1216,16 @@ def paraphase_page(pdf, sample, P):
         ax.axis("off")
         ax.text(0, 0.9, "no 'total_cn' field found in the JSON", transform=ax.transAxes, fontsize=8)
     ax.tick_params(labelsize=7)
-    ax2 = fig.add_subplot(gs[1])
-    sel = P[cn.reindex(P.index).ne(2)] if cn.notna().any() else P
-    cols = [c for c in P.columns][:8]
-    show = sel[cols].head(30).astype(object).map(lambda v: "-" if pd.isna(v) else nice(v))
-    small_table(ax2, show, 7, "regions with total_cn != 2 (first 30)" if cn.notna().any() else "regions")
+    what = "regions with total_cn != 2 or failed phasing" if cn.notna().any() else "regions"
+    small_table(fig.add_subplot(gs[1]), chunks[0], 7, f"{what} ({len(sel)} total, sorted by name)")
     pdf.savefig(fig)
     plt.close(fig)
+    for n, chunk in enumerate(chunks[1:], start=2):
+        fig = plt.figure(figsize=PAGE)
+        fig.suptitle(f"{sample}: paraphase regions, continued (page {n})", x=0.02, ha="left", fontsize=11.5, fontweight="bold")
+        small_table(fig.add_axes([0.06, 0.06, 0.92, 0.84]), chunk, 7)
+        pdf.savefig(fig)
+        plt.close(fig)
 
 
 def text_page(pdf, sample, found, genome_src, args):

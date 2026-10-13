@@ -3,4 +3,4 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
-  - sansa=1.1.0
+  - sansa=0.3.1
