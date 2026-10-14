@@ -17,6 +17,8 @@ use_overlaps: True            # overlaps svs and snps using rtg-tools for snps (
 use_paraviewer: False         # only enable for hg38, currently not compatible with HILBERT
 use_svtopo: False             # visualizes svs called from sawfish, needs the exclude regions file from below
 use_colorsdb: True            # use svdb to add colorsdb data to sv annotation, useful for rare sv classification
+rank_variants: True           # ranks variants of both types, needs deepvariant, annotsv and nanocaller to be active aswell as vep. gets a top list and all variants scored
+
 
 # below are data files and folders. only change if needed / not using any hg38
 gnomad_svdb: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/gnomad.v4.1.sv.sites.vcf.gz" # needs also to be indexed

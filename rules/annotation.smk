@@ -104,9 +104,11 @@ rule colorsdb_sv: # second step: sansa bcf -> colorsdb frequencies
 
 
 rule annotsv: # last step, tsv output only (avoids the tsv->vcf conversion bug in 3.5.x)
-    input:
-        sniffles="{output_dir}/annotated_variants/colorsdb_longphase_{sample}/{sample}_longphase_colorsdb.vcf.gz",
-        sawfish="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz"
+    input: # chaining like this does not make sense apparently, not chaining before annotsv
+        #sniffles="{output_dir}/annotated_variants/colorsdb_longphase_{sample}/{sample}_longphase_colorsdb.vcf.gz",
+        #sawfish="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz"
+        sniffles="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
+        sawfish="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz"
     output:
         sniffles="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.tsv",
         sawfish="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv"
@@ -153,33 +155,6 @@ rule annotsv: # last step, tsv output only (avoids the tsv->vcf conversion bug i
         mv "$tmpdir/sniffles/sniffles.annotated.tsv" {output.sniffles}
         mv "$tmpdir/sawfish/sawfish.annotated.tsv" {output.sawfish}
         """
-#ule sansa: # annotate svs
-#   input:
-#       svs_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
-#       phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz" 
-#   output:
-#       annotated_bcf="{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sniffles_longphase_annotated.bcf",
-#       tsv="{output_dir}/annotated_variants/sansa_svs_sniffles_{sample}/{sample}_sniffles_longphase_annotated.tsv.gz",
-#       sawfish_bcf="{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.bcf",
-#       sawfish_tsv="{output_dir}/annotated_variants/sansa_svs_cnvs_sawfish_{sample}/{sample}_sawfish_annotated.tsv.gz",
-#   conda:
-#       "../envs/sansa.yaml"
-#   log:
-#       "{output_dir}/logs/sansa_{sample}.log"
-#   resources:
-#       threads=lambda wildcards, attempt: attempt * 2,
-#       time_hrs=lambda wildcards, attempt: attempt * 2,
-#       mem_gb=lambda wildcards, attempt: 2 + (attempt * 10)
-#   params:
-#       annotation_sv_file=config["sv_annotation_file"] # maybe start here with the hgsvc data?
-#   message:
-#       "Annotating the svs from longphase (sniffles) and sawfish with sansa: {input.svs_phased} and {input.phased_cnv_and_svs}..."
-#   shell:
-#       """
-#       sansa annotate -d {params.annotation_sv_file} {input.svs_phased} -a {output.annotated_bcf} -o {output.tsv} >{log} 2>&1
-#       sansa annotate -d {params.annotation_sv_file} {input.phased_cnv_and_svs} -a {output.sawfish_bcf} -o {output.sawfish_tsv} >{log} 2>&1
-#       """
-# P1519_pb_variants_test_new/annotated_variants/sansa_svs_cnvs_sawfish_all_smrtcells_1519_bc2068/all_smrtcells_1519_bc2068_sawfish_annotated.csv.gz
 
 rule snpsift: # snps
     input:
@@ -251,141 +226,4 @@ rule vep:
         vep --offline --dir_cache {params.cache_dir} -i {params.whatsh_unzp} -o {output.whatsh_snp} --vcf  --everything --force_overwrite --fork {resources.threads} --warning_file {log} >>{log} 2>&1
         vep --offline --dir_cache {params.cache_dir} -i {params.nanocaller_unzipped} -o {output.nanoc_snp} --vcf  --everything --force_overwrite --fork {resources.threads} --warning_file {log} >>{log} 2>&1
         """
-
-# new idea: first colorsdb, then annotsv?
-#ule annotsv:
-#   input:
-#       svs_phased="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
-#       phased_cnv_and_svs="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz" 
-#   output:
-#       snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.vcf",
-#       sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf",
-#       #
-#   conda:
-#       "../envs/annotsv.yaml"
-#   log:
-#       "{output_dir}/logs/annotsv_{sample}.log"
-#   resources:
-#       threads=lambda wildcards, attempt: attempt * 2,
-#       time_hrs=lambda wildcards, attempt: attempt * 2,
-#       mem_gb=lambda wildcards, attempt: 2 + (attempt * 10)
-#   params:
-#       annotsv_data=config["annotsv_data_dir"],
-#       dir_out_snfls="{output_dir}/annotated_variants/annotsv_sniffles_{sample}",
-#       dir_out_sawfs="{output_dir}/annotated_variants/annotsv_sawfish_{sample}",
-#       unziped_safw="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf",
-#       parental_dir="{output_dir}",
-#       output_file1="{output_dir}/{sample}_snfls.vcf",
-#       output_file2="{output_dir}/{sample}_sawf.vcf",
-#   message:
-#       "Annotating the svs from longphase (sniffles) and sawfish with annotsv: {input.svs_phased} and {input.phased_cnv_and_svs}..."
-#   shell:
-#       """
-#       rm -rf {params.dir_out_snfls} >>{log} 2>&1
-#       rm -rf {params.dir_out_sawfs} >>{log} 2>&1
-#       mkdir -p {params.dir_out_snfls} >>{log} 2>&1 # annotsv needs these dirs to be present before it starts
-#       mkdir -p {params.dir_out_sawfs} >>{log} 2>&1
-#       gunzip {input.phased_cnv_and_svs} -f -c >{params.unziped_safw}
-#       AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {input.svs_phased} -outputDir {params.parental_dir} -outputFile {params.output_file1}  >>{log} 2>&1        
-#       AnnotSV -annotationsDir {params.annotsv_data} -SVinputFile {params.unziped_safw} -outputDir {params.parental_dir} -outputFile {params.output_file2}  >>{log} 2>&1
-#       mv {params.output_file1} {output.snfls} >>{log} 2>&1
-#       mv {params.output_file2} {output.sawfs} >>{log} 2>&1
-#       rm -f {params.parental_dir}/*unannotated.vcf >>{log} 2>&1
-#       rm -f {params.parental_dir}/*.bash >>{log} 2>&1
-#       rm -f {params.parental_dir}/*.bed >>{log} 2>&1
-#       rm -f {params.parental_dir}/*AnnotSV* >>{log} 2>&1
-#       """
-
-
-#ule annotsv:
-#   input:
-#       sniffles="{output_dir}/variants/longphase_{sample}/{sample}_phased_SV.vcf",
-#       sawfish="{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz"
-#   output:
-#       sniffles="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.vcf",
-#       sawfish="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.vcf"
-#   conda:
-#       "../envs/annotsv.yaml"
-#   log:
-#       "{output_dir}/logs/annotsv_{sample}.log"
-#   resources:
-#       threads=lambda wildcards, attempt: attempt * 2,
-#       time_hrs=lambda wildcards, attempt: attempt * 2,
-#       mem_gb=lambda wildcards, attempt: 6 + (attempt * 10)
-#   params:
-#       annotsv_data=config["annotsv_data_dir"]
-#   message:
-#       "Annotating Sniffles and Sawfish SVs with AnnotSV for {wildcards.sample}"
-#   shell:
-#       """
-#       set -euo pipefail
-#
-#       tmpdir=$(mktemp -d)
-#
-#       trap 'rm -rf "$tmpdir"' EXIT
-#
-#       mkdir -p $(dirname {output.sniffles})
-#       mkdir -p $(dirname {output.sawfish})
-#
-#       AnnotSV \
-#           -annotationsDir {params.annotsv_data} \
-#           -SVinputFile {input.sniffles} \
-#           -outputDir "$tmpdir/sniffles" \
-#           -outputFile {wildcards.sample}_phased_SV.annotated.vcf \
-#           -vcf 1 \
-#           -overwrite 1 \
-#           >> {log} 2>&1
-#
-#       AnnotSV \
-#           -annotationsDir {params.annotsv_data} \
-#           -SVinputFile {input.sawfish} \
-#           -outputDir "$tmpdir/sawfish" \
-#           -outputFile {wildcards.sample}_genotyped.sv.annotated.vcf \
-#           -vcf 1 \
-#           -overwrite 1 \
-#           >> {log} 2>&1
-#
-#       mv "$tmpdir/sniffles/{wildcards.sample}_phased_SV.annotated.vcf" \
-#          {output.sniffles}
-#
-#       mv "$tmpdir/sawfish/{wildcards.sample}_genotyped.sv.annotated.vcf" \
-#          {output.sawfish}
-#       """
-#
-#
-#
-#
-#
-#
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

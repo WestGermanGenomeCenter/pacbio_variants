@@ -130,3 +130,71 @@ rule chromograph_coverage:
         mkdir -p {output}
         chromograph --coverage {params.wig} --step {params.step} {params.norm} --euploid --outd {output} > {log} 2>&1
         """
+
+
+        # add rule for snp ranking: python ../../../scripts/score_variants.py
+ #        --deepvariant ../vep_whatshap_all_smrtcells_1519_bc2069/all_smrtcells_1519_bc2069_vep_whatshap_annotated.vcf 
+ #        --nanocaller ../vep_nanocaller_all_smrtcells_1519_bc2069/all_smrtcells_1519_bc2069_vep_nanocaller_annotated.vcf 
+ #        --output all_scored_only_top.tsv --top-n 100 
+  #       --reference ../../../inputs/reference.fasta
+# and sv ranking: 
+#--output-all all.tsv
+
+
+rule variants_ranking_snvs:
+    input:
+        whatsh_snp="{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_vep_whatshap_annotated.vcf",
+        nanoc_snp="{output_dir}/annotated_variants/vep_nanocaller_{sample}/{sample}_vep_nanocaller_annotated.vcf",
+        ref=config["reference"],
+    output:
+        summary="{output_dir}/ranked_variants/{sample}/{sample}_variants_ranked_top_n.tsv",
+        all_tsv = "{output_dir}/ranked_variants/{sample}/{sample}_variants_ranked.tsv",
+    conda:
+        "../envs/rtgtools.yaml"
+    log:
+        "{output_dir}/logs/rank_snps_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 2,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 22)
+    params:
+        sample_name = "{sample}",
+        ref_file=config["reference"], # must be fasta
+    message:
+        "creating small variant ranking ..."
+    shell:
+        """
+        python scripts/score_variants.py --deepvariant {input.whats_snp} --nanocaller {input.nanoc_snp} --output {output.summary} --output-all {output.all_tsv} --reference {input.ref}  --top-n 100 >{log} 2>&1
+        """
+# python ../../../scripts/score_svs.py 
+#--sniffles ../annotsv_sniffles_m84115_251015_223806_s1.hifi_reads.bc2080/m84115_251015_223806_s1.hifi_reads.bc2080_phased_SV.annotated.tsv 
+#--sawfish ../annotsv_sawfish_m84115_251015_223806_s1.hifi_reads.bc2080/m84115_251015_223806_s1.hifi_reads.bc2080_genotyped.sv.annotated.tsv 
+#--output test_first_svs.tsv 
+#--top-n 100
+# --output sv_shortlist.tsv --output-all sv_all_scored.tsv --top-n 100
+#"""
+
+rule variants_ranking_svs:
+    input:
+        sniffles="{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.tsv",
+        sawfish="{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv"
+    output:
+        summary="{output_dir}/ranked_variants/{sample}/{sample}_svs_ranked_top_n.tsv",
+        all_tsv="{output_dir}/ranked_variants/{sample}/{sample}_svs_ranked.tsv",
+    conda:
+        "../envs/rtgtools.yaml"
+    log:
+        "{output_dir}/logs/rank_svs_{sample}.log"
+    resources:
+        threads=lambda wildcards, attempt: attempt * 2,
+        time_hrs=lambda wildcards, attempt: attempt * 1,
+        mem_gb=lambda wildcards, attempt: 2 + (attempt * 22)
+    params:
+        sample_name = "{sample}",
+        ref_file=config["reference"], # must be fasta
+    message:
+        "creating sv ranking..."
+    shell:
+        """
+        python scripts/score_svs.py --sniffles {input.sniffles} --sawfish {input.sawfish} --top-n 100 --output {output.summary} --output-all {output.all_tsv} >{log} 2>&1
+        """
