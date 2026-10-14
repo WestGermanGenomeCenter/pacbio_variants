@@ -33,11 +33,13 @@ import time
 from collections import Counter, defaultdict
 
 # ---- tunable constants (placeholders, to be calibrated) -------------------------
-CONF_WEIGHTS = {"qual": 0.20, "support": 0.25, "vaf": 0.20, "depth": 0.10, "precise": 0.10, "strand": 0.15}
+CONF_WEIGHTS = {"qual": 0.20, "support": 0.20, "vaf": 0.15, "depth": 0.10, "precise": 0.10,
+                "strand": 0.15, "covchg": 0.10, "cn": 0.15}
 SINGLE_CALLER_FACTOR = 0.75
 SEGDUP_FACTOR, GAP_FACTOR, BLACKLIST_FACTOR = 0.8, 0.8, 0.6
 KNOWN_PATH_STRONG, KNOWN_PATH_PARTIAL = 0.8, 0.5
 ANNOTSV_BENIGN_FACTOR = 0.1
+RECESSIVE_HET_FACTOR = 0.5   # gene relevance x this for a het call in a recessive-only gene
 RARITY_COMMON = 0.05
 RARITY_FLOOR = 1e-4
 GENCC_SCORE = {"definitive": 1.0, "strong": 0.9, "moderate": 0.7, "supportive": 0.5,
@@ -53,7 +55,8 @@ FULL_COLS = ["CytoBand", "Gene_name", "Gene_count", "RE_gene", "P_gain_source", 
              "ACMG_class"]
 SPLIT_COLS = ["Gene_name", "Tx", "Overlapped_CDS_length", "Overlapped_CDS_percent", "Frameshift",
               "Exon_count", "Location", "Location2", "Dist_nearest_SS", "HI", "TS", "GnomAD_pLI",
-              "LOEUF_bin", "GenCC_classification", "OMIM_morbid", "OMIM_phenotype"]
+              "LOEUF_bin", "GenCC_classification", "GenCC_moi", "OMIM_inheritance", "OMIM_morbid",
+              "OMIM_phenotype"]
 # AnnotSV 3.5 column order; used to repair header names that lost their tab (e.g. a
 # header token like "B_loss_sourceB_loss_coord") and to sanity-check the column count.
 KNOWN_COLS = set("""AnnotSV_ID SV_chrom SV_start SV_end SV_length SV_type Samples_ID ID REF ALT QUAL
@@ -214,11 +217,14 @@ def gene_effect(svtype, s):
     fs = (s.get("Frameshift") or "").lower()
     dss = to_int(s.get("Dist_nearest_SS"))
     near_ss = dss is not None and dss <= 20
+    whole_tx = "txstart-txend" in loc
     if svtype in ("DEL", "CNV"):
         if in_cds:
+            if whole_tx and pct >= 99.9:
+                return 1.0, "whole-gene deletion"
             return (1.0 if fs == "yes" or pct >= 50 else 0.8), "CDS deletion"
-        if in_exon:
-            return 0.35, "UTR/non-coding exon deletion"
+        if in_exon or whole_tx:
+            return 0.35, "UTR/non-coding exon or whole non-coding transcript deletion"
         if near_ss:
             return 0.3, "deletion near splice site"
         return (0.1, "intronic deletion") if loc else (0.0, "")
@@ -241,6 +247,15 @@ def gene_effect(svtype, s):
             return 0.3, f"{svtype} breakpoint in exon"
         return (0.15, f"{svtype} breakpoint in intron") if loc else (0.0, "")
     return 0.0, ""
+
+
+def recessive_only(s):
+    """True if GenCC/OMIM list only recessive inheritance for this gene (AR, XLR)."""
+    for key in ("GenCC_moi", "OMIM_inheritance"):
+        toks = {t.strip().upper() for t in re.split(r"[;,|/]", s.get(key) or "") if t.strip()}
+        if toks:
+            return bool(toks & {"AR", "XLR"}) and not (toks & {"AD", "XLD", "XL", "SD", "SMU", "DD", "IC"})
+    return False
 
 
 def gene_disease(s):
@@ -269,10 +284,11 @@ def gene_disease(s):
 class SVCall:
     __slots__ = ("label", "aid", "chrom", "start", "end", "svtype", "svlen", "mate", "id", "qual",
                  "filt", "status", "gt", "hom", "alt", "ref", "vaf", "dp", "precise", "strand", "ps", "hap",
+                 "cn", "cn_term", "claim", "cov", "cov_flank", "cov_ratio", "covchg", "dgenes",
                  "qual_pct", "info", "full", "best", "best_val")
 
 
-def build_call(f, G, sidx, label, aid):
+def build_call(f, G, sidx, label, aid, min_cov_len):
     c = SVCall()
     c.label, c.aid = label, aid
     c.chrom = G(f, "SV_chrom")
@@ -313,6 +329,30 @@ def build_call(f, G, sidx, label, aid):
         c.vaf = num(d.get("AF") or d.get("VAF") or str(info.get("AF", "")).split(",")[0])
         c.dp = to_int(d.get("DP"))
     c.precise = 1.0 if "PRECISE" in info else (0.5 if "IMPRECISE" in info else None)
+    # Sawfish CNV records: FORMAT GT:CN:CNQ, INFO SVCLAIM (D = depth, J = junction, DJ = both)
+    cn = to_int(d.get("CN"))
+    c.cn, c.cn_term = cn, None
+    if cn is not None and c.svtype in ("DEL", "DUP", "CNV"):
+        want = {"DEL": (0 if c.hom else 1), "DUP": (4 if c.hom else 3), "CNV": None}[c.svtype]
+        right_dir = (cn < 2) if c.svtype == "DEL" else (cn > 2) if c.svtype == "DUP" else cn != 2
+        c.cn_term = 1.0 if (want is not None and cn == want) else (0.7 if right_dir else 0.0)
+    claim = info.get("SVCLAIM")
+    c.claim = claim if isinstance(claim, str) else None
+    # Sniffles2 COVERAGE: upstream, start, center, end, downstream
+    cov = [num(x) for x in str(info.get("COVERAGE", "")).split(",")]
+    c.cov, c.cov_flank, c.cov_ratio, c.covchg = None, None, None, None
+    if len(cov) == 5 and all(v is not None for v in cov):
+        c.cov = ",".join(f"{v:g}" for v in cov)
+        c.cov_flank = (cov[0] + cov[4]) / 2
+        if c.cov_flank > 0:
+            c.cov_ratio = cov[2] / c.cov_flank
+            if c.svlen and c.svlen >= min_cov_len and c.svtype in ("DEL", "DUP"):
+                r = c.cov_ratio
+                if c.svtype == "DEL":
+                    c.covchg = min(1.0, max(0.0, (1 - r) / (1.0 if c.hom else 0.5)))
+                else:
+                    c.covchg = min(1.0, max(0.0, (r - 1) / (1.0 if c.hom else 0.5)))
+    c.dgenes = {}
     st = info.get("STRAND")  # Sniffles2: "+-" = supporting reads on both strands
     c.strand = (None if not isinstance(st, str) else 1.0 if ("+" in st and "-" in st)
                 else 0.3 if st in ("+", "-") else None)
@@ -384,17 +424,23 @@ def load_annotsv(path, label, a, stats):
         stats[(label, f"lines: {mode or '?'}")] += 1
         c = svs.get(aid)
         if c is None:
-            c = svs[aid] = build_call(f, G, sidx, label, aid)
+            c = svs[aid] = build_call(f, G, sidx, label, aid, a.min_cov_len)
         if mode == "full":
             c.full = {k: f[i] for k, i in selfull if i < len(f)}
         elif mode == "split":
             s = {k: f[i] for k, i in selsplit if i < len(f)}
             eff, desc = gene_effect(c.svtype, s)
             dis = gene_disease(s)
+            rec = recessive_only(s) and not c.hom
+            if rec:
+                dis *= RECESSIVE_HET_FACTOR
             val = eff * (0.5 + 0.5 * dis)
+            gene = s.get("Gene_name", "")
+            if gene and eff >= 0.7 and dis >= 0.4:
+                c.dgenes[gene] = max(c.dgenes.get(gene, (0, "")), (dis, "AR" if rec else ""))
             if val > c.best_val:
                 c.best_val = val
-                c.best = dict(s, effect=eff, disease=dis, desc=desc)
+                c.best = dict(s, effect=eff, disease=dis, desc=desc, rec_het=rec)
     prog.done(n, raw.tell())
     raw.close()
 
@@ -486,8 +532,13 @@ def caller_confidence(c, a):
         t["support"] = min(c.alt / a.full_credit_support, 1.0)
     if c.vaf is not None:
         t["vaf"] = max(0.0, 1 - abs(c.vaf - (1.0 if c.hom else 0.5)) / 0.5)
-    if c.dp is not None:
-        t["depth"] = min(c.dp / a.full_credit_dp, 1.0)
+    depth = c.cov_flank if c.cov_flank is not None else c.dp
+    if depth is not None:
+        t["depth"] = min(depth / a.full_credit_dp, 1.0)
+    if c.covchg is not None:
+        t["covchg"] = c.covchg
+    if c.cn_term is not None:
+        t["cn"] = c.cn_term
     if c.precise is not None:
         t["precise"] = c.precise
     if c.strand is not None:
@@ -537,6 +588,10 @@ def main():
     ap.add_argument("--min-size-ratio", type=float, default=0.5, help="min size ratio to match INS (0.5)")
     ap.add_argument("--min-po-percent", type=float, default=50.0,
                     help="min %% of a known pathogenic SV that must be covered to count (50)")
+    ap.add_argument("--min-cov-len", type=int, default=1000,
+                    help="min SV length for the Sniffles COVERAGE change check (1000)")
+    ap.add_argument("--single-exempt-len", type=int, default=100000,
+                    help="SVs at least this long (or depth-only) are not penalised for a single caller (100000)")
     ap.add_argument("--full-credit-support", type=int, default=6, help="alt reads for full support credit (6)")
     ap.add_argument("--full-credit-dp", type=int, default=20, help="depth for full depth credit (20)")
     ap.add_argument("--db-key", action="append", default=[],
@@ -638,7 +693,10 @@ def main():
             ctx *= GAP_FACTOR
         if full.get("ENCODE_blacklist_left") or full.get("ENCODE_blacklist_right"):
             ctx *= BLACKLIST_FACTOR
-        single = len(order) > 1 and len(passed) == 1
+        # a lone call is only penalised if the other caller could plausibly have seen it:
+        # depth-only (SVCLAIM=D) or Mb-scale CNVs are normally invisible to the other caller
+        exempt = any(c.claim == "D" for c in passed.values()) or (prim.svlen or 0) >= a.single_exempt_len
+        single = len(order) > 1 and len(passed) == 1 and not exempt
         conf *= ctx * (SINGLE_CALLER_FACTOR if single else 1.0)
         score = impact * rar * conf
 
@@ -648,18 +706,31 @@ def main():
             why.append(f"{best['desc']} in {best.get('Gene_name', '')}"
                        + (f" ({best.get('Location', '')})" if best.get("Location") else ""))
         if best and best["disease"] > 0:
-            why.append(f"gene relevance {best['disease']:.1f}")
+            why.append(f"gene relevance {best['disease']:.1f}"
+                       + (" (recessive-only gene, het call: needs a second hit)" if best.get("rec_het") else ""))
+        dg = prim.dgenes
+        if len(dg) > 1:
+            why.append(f"{len(dg)} disease-associated genes hit")
         if path_why:
             why.append(path_why)
         if sc is not None:
             why.append(f"AnnotSV score {sc:.2f} (class {acmg or '?'})")
         why.append("no overlap with benign SV/db" if af is None else f"max AF {af:.2g} ({af_src})")
-        why.append("called by " + "+".join(l.upper() for l in passed) + (" (only one)" if single else ""))
+        why.append("called by " + "+".join(l.upper() for l in passed)
+                   + (" (only one)" if single else " (only one; not penalised, depth-only/large)"
+                      if len(order) > 1 and len(passed) == 1 else ""))
         for lab, c in present.items():
             if c.status != "PASS":
                 why.append(f"{lab.upper()} {c.status} (GT {c.gt}, alt reads {c.alt})")
             elif c.alt is not None and c.alt < a.full_credit_support / 2:
                 why.append(f"low support {lab.upper()} ({c.alt} alt reads)")
+            if c.covchg is not None:
+                why.append(f"coverage change {'supports' if c.covchg >= 0.6 else 'weak/absent'} "
+                           f"{lab.upper()} (center/flank {c.cov_ratio:.2f})")
+            if c.claim == "D":
+                why.append(f"{lab.upper()}: depth-only evidence (SVCLAIM=D), breakpoints approximate")
+            if c.cn is not None and c.cn_term is not None and c.cn_term < 1:
+                why.append(f"{lab.upper()}: CN={c.cn} {'fits' if c.cn_term else 'contradicts'} {c.svtype} genotype {c.gt}")
         if ctx < 1:
             why.append("segdup/gap/blacklist context")
 
@@ -679,6 +750,9 @@ def main():
             "gencc": (best or {}).get("GenCC_classification", ""),
             "hi": (best or {}).get("HI", ""), "pli": (best or {}).get("GnomAD_pLI", ""),
             "loeuf_bin": (best or {}).get("LOEUF_bin", ""),
+            "n_disease_genes": len(dg),
+            "disease_genes": ";".join(f"{g}{'(AR)' if m[1] else ''}" for g, m in
+                                      sorted(dg.items(), key=lambda kv: -kv[1][0])[:8]),
             "known_pathogenic": path_why, "annotsv_score": fmt(sc, 3), "annotsv_class": acmg,
             "annotsv_criteria": short(full.get("AnnotSV_ranking_criteria"), 200),
             "max_af": fmt(af), "af_source": af_src, "db_occ": fmt(occ),
@@ -702,6 +776,10 @@ def main():
             row[f"{lab}_alt_reads"] = fmt(c.alt) if c else ""
             row[f"{lab}_ref_reads"] = fmt(c.ref) if c else ""
             row[f"{lab}_vaf"] = fmt(c.vaf, 2) if c else ""
+            row[f"{lab}_cn"] = fmt(c.cn) if c else ""
+            row[f"{lab}_claim"] = (c.claim or "") if c else ""
+            row[f"{lab}_cov"] = (c.cov or "") if c else ""
+            row[f"{lab}_cov_ratio"] = fmt(c.cov_ratio, 2) if c else ""
             row[f"{lab}_conf"] = fmt(confs.get(lab), 2)
         row["phase_set"] = next((c.ps for c in passed.values() if c.ps), "")
         rows.append(row)
@@ -712,12 +790,14 @@ def main():
 
     cols = ["rank", "locus", "chrom", "start", "end", "svtype", "svlen", "cytoband", "genes", "gene_count",
             "best_gene", "tx", "location", "cds_pct", "frameshift", "gene_effect", "gene_relevance",
-            "omim_phenotype", "gencc", "hi", "pli", "loeuf_bin", "known_pathogenic", "annotsv_score",
+            "omim_phenotype", "gencc", "hi", "pli", "loeuf_bin", "n_disease_genes", "disease_genes",
+            "known_pathogenic", "annotsv_score",
             "annotsv_class", "annotsv_criteria", "max_af", "af_source", "db_occ", "segdup", "called_by",
             "match_ro", "match_size_ratio", "start_delta", "end_delta"]
     for lab in order:
         cols += [f"{lab}_{x}" for x in ("status", "id", "start", "end", "svlen", "qual", "gt",
-                                         "alt_reads", "ref_reads", "vaf", "conf")]
+                                         "alt_reads", "ref_reads", "vaf", "cn", "claim", "cov",
+                                         "cov_ratio", "conf")]
     cols += ["phase_set", "impact_score", "rarity_score", "conf_score", "score", "reasons"]
 
     def write(path, subset):

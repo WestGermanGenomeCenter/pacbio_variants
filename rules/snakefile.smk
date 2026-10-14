@@ -65,8 +65,6 @@ def get_mqc_files():
         all.extend(expand("{output_dir}/ranked_variants/{sample}/{sample}_svs_ranked_top_n.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
 
-#         summary="{output_dir}/ranked_variants/{sample}/{sample}_variants_ranked_top_n.tsv",
-#         summary="{output_dir}/ranked_variants/{sample}/{sample}_svs_ranked_top_n.tsv",
 
     # option to disable all but the core workflow:
     if config["use_secondary_options"]:
