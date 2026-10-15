@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-prioritize_snvs.py (v2) - shortlist of plausible SNVs/indels from VEP-annotated
+prioritize_snvs.py (v2.1) - shortlist of plausible SNVs/indels from VEP-annotated
 DeepVariant and/or NanoCaller VCFs. Stdlib only.
 
 Per variant:  score = impact * rarity * confidence * bonuses
@@ -116,7 +116,7 @@ def peak_ram_gb():
 
 
 class Progress:
-    """Progress by bytes of the (compressed) input file; \\r on a terminal, lines in logs."""
+    """Progress by bytes of the (compressed) input file; \r on a terminal, lines in logs."""
 
     def __init__(self, label, total_bytes, interval):
         self.label, self.total = label, max(total_bytes, 1)
@@ -241,8 +241,11 @@ def pick_csq(csq, ix, alleles):
         ents.append((IMPACT_RANK.get(g(vals, iimp), -1), t1, coding, vals))
     if not ents:
         return None
+    
     t1s = [e for e in ents if e[1]]
     cods = [e for e in ents if e[2]]
+    non_cods = [e for e in ents if not e[2]]
+    
     best_t1 = max(t1s, key=lambda e: (e[0], bool(g(e[3], imane)))) if t1s else None
     if best_t1 and best_t1[0] >= IMPACT_RANK["MODERATE"]:
         pick = best_t1
@@ -251,15 +254,29 @@ def pick_csq(csq, ix, alleles):
         pick = best_c if (best_t1 is None or best_c[0] > best_t1[0]) else best_t1
     else:
         pick = max(ents, key=lambda e: (e[0], e[1]))
-    worst = max(cods, key=lambda e: e[0]) if cods else None   # "credible" = protein-coding
+    
+    # Track worst entries separately to avoid silently dropping severe isoform-only hits
+    worst_coding = max(cods, key=lambda e: e[0]) if cods else None
+    worst_isoform = max(non_cods, key=lambda e: e[0]) if non_cods else None
+    
     best = pick[3]
     out = {k: g(best, ix.get(k, -1)) for k in KEEP_CSQ}
     out["other_tx"] = ""
     out["non_canon"] = not pick[1]
-    if worst and worst[0] > pick[0] and worst[0] >= IMPACT_RANK["MODERATE"]:
-        w = worst[3]
-        out["other_tx"] = (f"{g(w, iimp)} {g(w, ix.get('Consequence', -1))} on "
+    
+    if worst_coding and worst_coding[0] > pick[0] and worst_coding[0] >= IMPACT_RANK["MODERATE"]:
+        w = worst_coding[3]
+        out["other_tx"] = (f"also {g(w, iimp)} {g(w, ix.get('Consequence', -1))} on "
                            f"{g(w, ix.get('Feature', -1))} ({g(w, ibio)})")
+    
+    if worst_isoform and worst_isoform[0] > pick[0] and worst_isoform[0] >= IMPACT_RANK["MODERATE"]:
+        w = worst_isoform[3]
+        note = f"also {g(w, iimp)} {g(w, ix.get('Consequence', -1))} on {g(w, ix.get('Feature', -1))} ({g(w, ibio)}): isoform-only effect, down-weighted"
+        if out["other_tx"]:
+            out["other_tx"] += "; " + note
+        else:
+            out["other_tx"] = note
+
     freq = to_float(g(best, ix.get("MAX_AF", -1)))
     if freq is None:
         fv = [to_float(g(best, ix.get(k, -1))) for k in FREQ_FALLBACK]
@@ -272,7 +289,7 @@ def pick_csq(csq, ix, alleles):
 
 class Call:
     __slots__ = ("qual", "filt", "status", "gt", "hom", "dp", "vaf", "alt_f", "alt_r",
-                 "ps", "hap", "qual_pct", "alt_n", "tot_n", "vaf_p")
+                 "ps", "hap", "qual_pct", "alt_n", "ref_n", "tot_n", "vaf_p")
 
 
 def better(new, old):
@@ -361,6 +378,7 @@ def load_caller(path, label, a, fasta, stats, annot):
             if alt_n is None and call.alt_f is not None and call.alt_r is not None:
                 alt_n = call.alt_f + call.alt_r
             call.alt_n = alt_n
+            call.ref_n = ad[0] if ad else None
             call.tot_n = sum(ad) if ad and sum(ad) > 0 else call.dp
             call.vaf_p = None
             if call.status == "PASS":
@@ -420,10 +438,17 @@ def caller_confidence(c, full_dp, vaf_model="binomial"):
     terms = {}
     if c.qual_pct is not None:
         terms["qual"] = c.qual_pct
-    if vaf_model == "binomial" and c.alt_n is not None and c.tot_n:
-        # soft consistency with the genotype: no penalty unless the alt-read count is implausible
-        c.vaf_p = binom_two_sided_p(c.alt_n, c.tot_n, HOM_EXPECTED_VAF if c.hom else 0.5)
-        terms["vaf"] = min(1.0, c.vaf_p / VAF_P_FULL)
+    if vaf_model == "binomial" and c.alt_n is not None:
+        # For multi-allelic sites, tot_n includes other alts. 
+        # Use ref + this alt as n if ref_n is available to avoid spuriously penalizing.
+        n_binom = (c.ref_n + c.alt_n) if c.ref_n is not None else c.tot_n
+        if n_binom > 0:
+            c.vaf_p = binom_two_sided_p(c.alt_n, n_binom, HOM_EXPECTED_VAF if c.hom else 0.5)
+            vaf_conf = min(1.0, c.vaf_p / VAF_P_FULL)
+            # Depth-aware caution: if n is very low, cap confidence to avoid false certainty
+            if n_binom < 10:
+                vaf_conf = min(vaf_conf, 0.7)
+            terms["vaf"] = vaf_conf
     elif vaf_model == "binomial" and c.vaf is not None:
         terms["vaf"] = max(0.0, 1 - abs(c.vaf - (1.0 if c.hom else 0.5)) / 0.5)
     if c.dp is not None:
@@ -677,7 +702,7 @@ def main():
         if csq.get("non_canon") and csq.get("IMPACT") in ("HIGH", "MODERATE"):
             why.append("effect only on a non-canonical transcript")
         if csq.get("other_tx"):
-            why.append("more severe on another protein-coding transcript: " + csq["other_tx"])
+            why.append("more severe on another transcript: " + csq["other_tx"])
         if prob_note:
             why.append(prob_note)
         why.append(rar_note or ("absent from gnomAD/1000G" if af is None else f"max AF {af:.2g}"))
@@ -703,7 +728,9 @@ def main():
                 if t >= 4 and min(c.alt_f, c.alt_r) / t < 0.1:
                     why.append(f"strand-biased alt reads {L}")
             if c.vaf_p is not None and c.vaf_p < VAF_P_FULL:
-                why.append(f"VAF {c.vaf:.2f} atypical for genotype {c.gt} on {L} (binomial p={c.vaf_p:.2g})")
+                obs_vaf = c.vaf if c.vaf is not None else (c.alt_n / c.tot_n if c.tot_n else None)
+                vaf_str = f"{obs_vaf:.2f}" if obs_vaf is not None else "NA"
+                why.append(f"VAF {vaf_str} atypical for genotype {c.gt} on {L} (binomial p={c.vaf_p:.2g})")
 
         row = {"locus": f"{chrom}:{pos}", "chrom": chrom, "pos": pos, "ref": ref, "alt": alt,
                "symbol": csq.get("SYMBOL") or csq.get("Gene", ""),
