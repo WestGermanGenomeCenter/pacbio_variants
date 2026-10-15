@@ -55,6 +55,14 @@ NONCODING_REL = 0.15   # gene relevance of lncRNA/other non-coding transcripts w
 PSEUDOGENE_REL = 0.10
 CODING_NO_PHENO_REL = 0.6   # protein-coding gene with no GENE_PHENO flag from VEP
 MASK_FACTOR = 0.5      # confidence x this inside a --mask-bed region (segdups, low mappability, ...)
+PROBLEM_GENE_FACTOR = 0.5   # confidence x this in repeat-rich / paralogous gene families
+CLUSTER_FACTOR = 0.7        # confidence x this for a variant inside a dense cluster of candidates
+# calls in these families are dominated by mapping artefacts (D4Z4, kringle IV, mucin VNTRs, ...)
+ARTIFACT_GENE_RE = re.compile(r"^(DUX4.*|LPA|ZAN|MUC\d+[A-Z]?|NBPF\d.*|KIR\d.*|HLA-.*|OR\d+[A-Z]+\d+.*|"
+                              r"PRAMEF\d.*|GOLGA6L\d.*|TBC1D3.*|USP17L.*|FRG2.*)$")
+# real disease genes with close paralogs/pseudogenes: not penalised, but confirm (e.g. paraphase)
+PARALOG_GENES = {"SMN1", "SMN2", "CYP21A2", "CYP2D6", "GBA", "GBA1", "STRC", "PMS2", "NCF1", "HBA1",
+                 "HBA2", "IKBKG", "PKD1", "SBDS", "CHEK2", "OTOA"}
 PRIMARY_RE = re.compile(r"^(chr)?([1-9]|1[0-9]|2[0-2]|X)$")
 KEEP_CSQ = ("SYMBOL", "Gene", "Feature", "BIOTYPE", "Consequence", "IMPACT", "HGVSc",
             "HGVSp", "CLIN_SIG", "SIFT", "PolyPhen", "MANE_SELECT", "Existing_variation",
@@ -200,25 +208,44 @@ def clinvar_class(clin_sig):
 
 
 def pick_csq(csq, ix, alleles):
-    """Most severe transcript for this allele (tie-break: MANE Select, canonical, coding)."""
+    """Transcript for this allele, VEP-style: MANE Select / canonical protein-coding first; a
+    non-canonical protein-coding transcript only if it is more severe; NMD, retained-intron and
+    non-coding transcripts only if nothing else overlaps the allele."""
     ia, iimp, imane = ix.get("Allele", -1), ix.get("IMPACT", -1), ix.get("MANE_SELECT", -1)
     ican, ibio = ix.get("CANONICAL", -1), ix.get("BIOTYPE", -1)
 
     def g(vals, i):
         return vals[i] if 0 <= i < len(vals) else ""
 
-    best, best_key = None, None
+    ents = []
     for entry in csq.split(","):
         vals = entry.split("|")
         if g(vals, ia) not in alleles:
             continue
-        key = (IMPACT_RANK.get(g(vals, iimp), -1), bool(g(vals, imane)),
-               g(vals, ican) == "YES", g(vals, ibio) == "protein_coding")
-        if best_key is None or key > best_key:
-            best, best_key = vals, key
-    if best is None:
+        coding = g(vals, ibio) == "protein_coding"
+        t1 = bool(g(vals, imane)) or (g(vals, ican) == "YES" and coding)
+        ents.append((IMPACT_RANK.get(g(vals, iimp), -1), t1, coding, vals))
+    if not ents:
         return None
+    t1s = [e for e in ents if e[1]]
+    cods = [e for e in ents if e[2]]
+    best_t1 = max(t1s, key=lambda e: (e[0], bool(g(e[3], imane)))) if t1s else None
+    if best_t1 and best_t1[0] >= IMPACT_RANK["MODERATE"]:
+        pick = best_t1
+    elif cods:
+        best_c = max(cods, key=lambda e: (e[0], e[1]))
+        pick = best_c if (best_t1 is None or best_c[0] > best_t1[0]) else best_t1
+    else:
+        pick = max(ents, key=lambda e: (e[0], e[1]))
+    worst = max(ents, key=lambda e: e[0])
+    best = pick[3]
     out = {k: g(best, ix.get(k, -1)) for k in KEEP_CSQ}
+    out["other_tx"] = ""
+    out["non_canon"] = not pick[1]
+    if worst[0] > pick[0] and worst[0] >= IMPACT_RANK["MODERATE"]:
+        w = worst[3]
+        out["other_tx"] = (f"{g(w, iimp)} {g(w, ix.get('Consequence', -1))} on "
+                           f"{g(w, ix.get('Feature', -1))} ({g(w, ibio)})")
     freq = to_float(g(best, ix.get("MAX_AF", -1)))
     if freq is None:
         fv = [to_float(g(best, ix.get(k, -1))) for k in FREQ_FALLBACK]
@@ -314,6 +341,14 @@ def load_caller(path, label, a, fasta, stats, annot):
                 v = (d.get("VAF") or d.get("VF") or "").split(",")
                 call.vaf = to_float(v[i]) if len(v) > i else None
             call.dp = int(d["DP"]) if d.get("DP", ".").isdigit() else None
+            alt_n = ad[i + 1] if ad and len(ad) > i + 1 else None
+            if call.status == "PASS":
+                if call.dp is not None and call.dp < a.min_dp:
+                    call.status = "low_dp"
+                elif alt_n is not None and alt_n < a.min_alt_reads:
+                    call.status = "low_alt_reads"
+                elif not call.hom and call.vaf is not None and call.vaf < a.min_vaf:
+                    call.status = "low_vaf"
             call.alt_f = adf[i + 1] if adf and len(adf) > i + 1 else None
             call.alt_r = adr[i + 1] if adr and len(adr) > i + 1 else None
             ps = d.get("PS", ".")
@@ -434,6 +469,28 @@ def pair_status(A, B, order):
     return "unphased"
 
 
+def flag_clusters(items, window, min_n):
+    """Dense groups of candidates (clustered indels/SNVs) are typical of repeat/mapping artefacts."""
+    if min_n <= 0:
+        return 0
+    by_chrom = defaultdict(list)
+    for it in items:
+        by_chrom[it["row"]["chrom"]].append((it["row"]["pos"], it))
+    n = 0
+    for lst in by_chrom.values():
+        lst.sort(key=lambda x: x[0])
+        pos = [p for p, _ in lst]
+        for p, it in lst:
+            near = bisect.bisect_right(pos, p + window) - bisect.bisect_left(pos, p - window)
+            if near >= min_n:
+                it["clustered"] = True
+                it["score"] *= CLUSTER_FACTOR
+                it["why"].append(f"{near - 1} other candidate variants within {window} bp "
+                                 "(repeat/mapping artefact?)")
+                n += 1
+    return n
+
+
 def compound_het(items, order):
     by_gene = defaultdict(list)
     for it in items:
@@ -459,7 +516,8 @@ def compound_het(items, order):
             if label == "trans":
                 partners = sorted(loc for s, loc in stat[id(it)] if s == "trans")[:3]
                 it["why"].append("compound-het in trans with " + ",".join(partners))
-                it["score"] *= COMPHET_TRANS_BONUS
+                if not it.get("clustered"):
+                    it["score"] *= COMPHET_TRANS_BONUS
                 n_trans += 1
             elif label == "unphased":
                 it["why"].append("2+ rare variants in gene (phase unknown)")
@@ -476,13 +534,22 @@ def main():
     ap.add_argument("--output", required=True, help="shortlist TSV")
     ap.add_argument("--output-all", help="optional TSV with every scored variant")
     ap.add_argument("--top-n", type=int, default=100)
-    ap.add_argument("--full-credit-dp", type=int, default=30,
+    ap.add_argument("--full-credit-dp", type=int, default=20,
                     help="depth at which the depth term reaches 1.0 (default 20)")
     ap.add_argument("--min-impact", default="LOW", choices=list(IMPACT_RANK),
                     help="skip records whose most severe consequence is below this "
                          "(ClinVar P/LP always kept). Default LOW")
     ap.add_argument("--max-af", type=float, default=RARITY_COMMON,
                     help="skip records with MAX_AF at/above this (default 0.05; rarity is 0 above it anyway)")
+    ap.add_argument("--min-dp", type=int, default=8, help="calls below this depth do not count as PASS (8; 0 = off)")
+    ap.add_argument("--min-alt-reads", type=int, default=4,
+                    help="calls with fewer alt reads do not count as PASS (4; 0 = off)")
+    ap.add_argument("--min-vaf", type=float, default=0.2,
+                    help="het calls below this VAF do not count as PASS (0.2; 0 = off)")
+    ap.add_argument("--cluster-window", type=int, default=2000,
+                    help="window (bp) for the dense-cluster check (2000)")
+    ap.add_argument("--cluster-min", type=int, default=3,
+                    help="candidates within the window (incl. itself) that make a cluster (3; 0 = off)")
     ap.add_argument("--include-contigs", default="",
                     help="comma list of extra contigs to keep, e.g. chrY,chrM (default: chr1-22 and chrX only)")
     ap.add_argument("--mask-bed", action="append", default=[], metavar="NAME=PATH",
@@ -533,6 +600,13 @@ def main():
         single = len(callers) > 1 and len(passed) == 1
         if single:
             conf *= SINGLE_CALLER_FACTOR
+        sym = csq.get("SYMBOL", "")
+        prob_note = ""
+        if ARTIFACT_GENE_RE.match(sym):
+            conf *= PROBLEM_GENE_FACTOR
+            prob_note = f"{sym}: repeat-rich/paralogous gene family, calls are often mapping artefacts"
+        elif sym in PARALOG_GENES:
+            prob_note = f"{sym} has close paralogs/pseudogenes: confirm (e.g. paraphase)"
         mhits = mask_hits(masks, chrom, pos) if masks else []
         if mhits:
             conf *= MASK_FACTOR
@@ -547,6 +621,12 @@ def main():
             why.append(f"ClinVar {cv}")
         if rel_note:
             why.append(rel_note)
+        if csq.get("non_canon") and csq.get("IMPACT") in ("HIGH", "MODERATE"):
+            why.append("effect only on a non-canonical transcript")
+        if csq.get("other_tx"):
+            why.append("more severe only on another transcript: " + csq["other_tx"])
+        if prob_note:
+            why.append(prob_note)
         why.append("absent from gnomAD/1000G" if af is None else f"max AF {af:.2g}")
         if "COSV" in csq.get("Existing_variation", ""):
             why.append("COSMIC-listed (somatic hotspot? check sample type/mosaicism)")
@@ -600,6 +680,7 @@ def main():
                       "gene": csq.get("Gene") or csq.get("SYMBOL", ""),
                       "score": imp * rel * rar * conf})
 
+    n_clustered = flag_clusters(items, a.cluster_window, a.cluster_min)
     n_trans = compound_het(items, order)
     for it in items:
         it["row"]["reasons"] = "; ".join(it["why"])
@@ -632,7 +713,8 @@ def main():
     print("\n=== summary ===", file=sys.stderr)
     for (lab, what), n in sorted(stats.items()):
         print(f"[{lab}] {what}: {n:,}", file=sys.stderr)
-    print(f"candidate sites scored: {len(rows):,}; compound-het (trans) variants: {n_trans}",
+    print(f"candidate sites scored: {len(rows):,}; compound-het (trans) variants: {n_trans}; "
+          f"down-weighted as dense clusters: {n_clustered}",
           file=sys.stderr)
     print("shortlist by impact:", dict(Counter(r["impact"] for r in shortlist)), file=sys.stderr)
     print("shortlist by caller:", dict(Counter(r["called_by"] for r in shortlist)), file=sys.stderr)
