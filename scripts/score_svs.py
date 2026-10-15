@@ -39,6 +39,9 @@ SINGLE_CALLER_FACTOR = 0.75
 SEGDUP_FACTOR, GAP_FACTOR, BLACKLIST_FACTOR = 0.8, 0.8, 0.6
 KNOWN_PATH_STRONG, KNOWN_PATH_PARTIAL = 0.8, 0.5
 ANNOTSV_BENIGN_FACTOR = 0.1
+DEPTH_ANOMALY_FACTOR = 0.5   # flank depth far above the sample median: collapsed repeat / segdup?
+FAILED_DEPTH_FACTOR = 0.7    # the other caller filtered this locus for excessive depth
+LARGE_SV_FACTOR = 0.5        # arm-scale events: aneuploidy / mosaicism / segmentation artefact?
 RECESSIVE_HET_FACTOR = 0.5   # gene relevance x this for a het call in a recessive-only gene
 RARITY_COMMON = 0.05
 RARITY_FLOOR = 1e-4
@@ -202,6 +205,21 @@ def af_values(s):
 
 
 # ---------------------------------------------------------------- gene logic -------
+def real_sources(s):
+    """Pathogenic-SV sources without the gene-level 'morbid:GENE' entries (handled by the gene logic)."""
+    return [t for t in (s or "").split(";") if t and not t.lower().startswith("morbid:")]
+
+
+def pathogenic_cover(sources, percents):
+    """Max % of a (non-morbid) known pathogenic SV covered by the query SV."""
+    toks, pcts = (sources or "").split(";"), [num(t) for t in (percents or "").split(";")]
+    if len(toks) == len(pcts):
+        vals = [p for t, p in zip(toks, pcts) if p is not None and not t.lower().startswith("morbid:")]
+    else:
+        vals = [p for p in pcts if p is not None] if real_sources(sources) else []
+    return max(vals) if vals else None
+
+
 def max_number(s):
     vals = [v for v in (num(t) for t in re.split(r"[;,|]", s or "")) if v is not None]
     return max(vals) if vals else None
@@ -212,7 +230,9 @@ def gene_effect(svtype, s):
     cds = to_int(s.get("Overlapped_CDS_length")) or 0
     pct = num(s.get("Overlapped_CDS_percent")) or 0.0
     loc, loc2 = (s.get("Location") or "").lower(), s.get("Location2") or ""
-    in_cds = cds > 0 or "CDS" in loc2
+    # Location2 "CDS" alone only says the intron lies within the CDS span; point SVs
+    # (INS/BND) need an exon in Location to hit coding sequence
+    in_cds = cds > 0 or ("exon" in loc and "CDS" in loc2)
     in_exon = in_cds or "exon" in loc
     fs = (s.get("Frameshift") or "").lower()
     dss = to_int(s.get("Dist_nearest_SS"))
@@ -284,7 +304,7 @@ def gene_disease(s):
 class SVCall:
     __slots__ = ("label", "aid", "chrom", "start", "end", "svtype", "svlen", "mate", "id", "qual",
                  "filt", "status", "gt", "hom", "alt", "ref", "vaf", "dp", "precise", "strand", "ps", "hap",
-                 "cn", "cn_term", "claim", "cov", "cov_flank", "cov_ratio", "covchg", "dgenes",
+                 "cn", "cn_term", "claim", "cov", "cov_flank", "cov_ratio", "covchg", "dgenes", "depth_x",
                  "qual_pct", "info", "full", "best", "best_val")
 
 
@@ -340,12 +360,14 @@ def build_call(f, G, sidx, label, aid, min_cov_len):
     c.claim = claim if isinstance(claim, str) else None
     # Sniffles2 COVERAGE: upstream, start, center, end, downstream
     cov = [num(x) for x in str(info.get("COVERAGE", "")).split(",")]
-    c.cov, c.cov_flank, c.cov_ratio, c.covchg = None, None, None, None
+    c.cov, c.cov_flank, c.cov_ratio, c.covchg, c.depth_x = None, None, None, None, None
     if len(cov) == 5 and all(v is not None for v in cov):
         c.cov = ",".join(f"{v:g}" for v in cov)
         c.cov_flank = (cov[0] + cov[4]) / 2
-        if c.cov_flank > 0:
-            c.cov_ratio = cov[2] / c.cov_flank
+        ref_flank = (min(cov[0], cov[4]) if c.svtype == "DEL" else
+                     max(cov[0], cov[4]) if c.svtype == "DUP" else c.cov_flank)
+        if ref_flank > 0:
+            c.cov_ratio = cov[2] / ref_flank
             if c.svlen and c.svlen >= min_cov_len and c.svtype in ("DEL", "DUP"):
                 r = c.cov_ratio
                 if c.svtype == "DEL":
@@ -451,6 +473,14 @@ def load_annotsv(path, label, a, stats):
             continue
         calls.append(c)
         stats[(label, "kept PASS" if c.status == "PASS" else "kept failed (carried along)")] += 1
+    # flank depth relative to the sample's typical depth (median over this caller's PASS calls)
+    flanks = sorted(c.cov_flank for c in calls if c.status == "PASS" and c.cov_flank)
+    ref_dp = a.expected_dp or (flanks[len(flanks) // 2] if flanks else None)
+    if ref_dp:
+        stats[(label, f"sample depth reference used for the depth-anomaly check: {ref_dp:g}x")] += 1
+        for c in calls:
+            if c.cov_flank:
+                c.depth_x = c.cov_flank / ref_dp
     # QUAL percentile among PASS calls, only if QUAL is informative
     passed = [c for c in calls if c.status == "PASS" and c.qual is not None]
     quals = sorted(c.qual for c in passed)
@@ -592,6 +622,16 @@ def main():
                     help="min SV length for the Sniffles COVERAGE change check (1000)")
     ap.add_argument("--single-exempt-len", type=int, default=100000,
                     help="SVs at least this long (or depth-only) are not penalised for a single caller (100000)")
+    ap.add_argument("--expected-dp", type=float,
+                    help="typical sample depth (default: median Sniffles flank depth)")
+    ap.add_argument("--max-depth-x", type=float, default=2.5,
+                    help="flank depth above this multiple of the sample depth counts as anomalous (2.5)")
+    ap.add_argument("--large-sv-len", type=int, default=5000000,
+                    help="SVs at least this long are flagged as arm-scale and down-weighted (5 Mb)")
+    ap.add_argument("--max-depth-only", type=int, default=20,
+                    help="max depth-only (SVCLAIM=D) CNV segments in the shortlist (20)")
+    ap.add_argument("--cnv-warn-len", type=int, default=1000000,
+                    help="warn if 3+ scored SVs are at least this long (1 Mb)")
     ap.add_argument("--full-credit-support", type=int, default=6, help="alt reads for full support credit (6)")
     ap.add_argument("--full-credit-dp", type=int, default=20, help="depth for full depth credit (20)")
     ap.add_argument("--db-key", action="append", default=[],
@@ -653,10 +693,10 @@ def main():
         gene_term = best["effect"] * (0.5 + 0.5 * best["disease"]) if best else 0.0
         path, path_why = 0.0, ""
         for k in KIND_P.get(t, []):
-            if full.get(f"P_{k}_source"):
+            if real_sources(full.get(f"P_{k}_source")):
                 path, path_why = KNOWN_PATH_STRONG, f"known pathogenic {k}: {short(full.get(f'P_{k}_phen'), 60)}"
-            elif full.get(f"po_P_{k}_source") and path < KNOWN_PATH_PARTIAL:
-                cov = max_number(full.get(f"po_P_{k}_percent"))
+            elif path < KNOWN_PATH_PARTIAL:
+                cov = pathogenic_cover(full.get(f"po_P_{k}_source"), full.get(f"po_P_{k}_percent"))
                 if cov is not None and cov >= a.min_po_percent:
                     path, path_why = KNOWN_PATH_PARTIAL, f"covers {cov:.0f}% of a known pathogenic {k}"
         sc = num(full.get("AnnotSV_ranking_score"))
@@ -695,10 +735,27 @@ def main():
             ctx *= BLACKLIST_FACTOR
         # a lone call is only penalised if the other caller could plausibly have seen it:
         # depth-only (SVCLAIM=D) or Mb-scale CNVs are normally invisible to the other caller
-        exempt = any(c.claim == "D" for c in passed.values()) or (prim.svlen or 0) >= a.single_exempt_len
+        failed = {lab: c for lab, c in present.items() if c.status != "PASS"}
+        exempt = (not failed) and (any(c.claim == "D" for c in passed.values())
+                                   or (prim.svlen or 0) >= a.single_exempt_len)
         single = len(order) > 1 and len(passed) == 1 and not exempt
         conf *= ctx * (SINGLE_CALLER_FACTOR if single else 1.0)
+        anomalies = []
+        if any("maxscoringdepth" in c.status.lower() for c in failed.values()):
+            conf *= FAILED_DEPTH_FACTOR
+            anomalies.append("other caller filtered it for excessive depth (MaxScoringDepth)")
+        dx = max((c.depth_x for c in passed.values() if c.depth_x), default=None)
+        if dx is not None and dx > a.max_depth_x:
+            conf *= DEPTH_ANOMALY_FACTOR
+            anomalies.append(f"flank depth {dx:.1f}x the sample median: collapsed repeat/segdup artefact?")
+        if (prim.svlen or 0) >= a.large_sv_len:
+            conf *= LARGE_SV_FACTOR
+            anomalies.append(f"arm-scale event ({prim.svlen / 1e6:.1f} Mb): check aneuploidy/mosaicism/segmentation")
         score = impact * rar * conf
+
+        gts = {frozenset(re.split(r"[/|]", c.gt)) for c in passed.values()}
+        gt_match = "" if len(passed) < 2 else ("yes" if len(gts) == 1 else "NO")
+        depth_only = any(c.claim == "D" for c in passed.values())
 
         # reasons
         why = [f"{t} {prim.svlen:,} bp" if prim.svlen else t]
@@ -731,8 +788,12 @@ def main():
                 why.append(f"{lab.upper()}: depth-only evidence (SVCLAIM=D), breakpoints approximate")
             if c.cn is not None and c.cn_term is not None and c.cn_term < 1:
                 why.append(f"{lab.upper()}: CN={c.cn} {'fits' if c.cn_term else 'contradicts'} {c.svtype} genotype {c.gt}")
+        if gt_match == "NO":
+            why.append("genotype disagrees between callers ("
+                       + " vs ".join(f"{l.upper()} {c.gt}" for l, c in passed.items()) + ")")
         if ctx < 1:
             why.append("segdup/gap/blacklist context")
+        why.extend(anomalies)
 
         genes = [g for g in (full.get("Gene_name") or "").split(";") if g]
         row = {
@@ -757,7 +818,9 @@ def main():
             "annotsv_criteria": short(full.get("AnnotSV_ranking_criteria"), 200),
             "max_af": fmt(af), "af_source": af_src, "db_occ": fmt(occ),
             "segdup": "yes" if (full.get("SegDup_left") or full.get("SegDup_right")) else "",
-            "called_by": "+".join(l.upper() for l in passed),
+            "called_by": "+".join(l.upper() for l in passed), "gt_match": gt_match,
+            "evidence_class": "depth-only" if depth_only else "junction",
+            "_annot": sc if sc is not None else 0.0, "_ndg": len(dg), "_svlen": prim.svlen or 0,
             "match_ro": fmt(ro, 2), "match_size_ratio": fmt(ratio, 2),
             "start_delta": (present[order[1]].start - present[order[0]].start) if len(present) == 2 else "",
             "end_delta": (present[order[1]].end - present[order[0]].end) if len(present) == 2 else "",
@@ -784,7 +847,8 @@ def main():
         row["phase_set"] = next((c.ps for c in passed.values() if c.ps), "")
         rows.append(row)
 
-    rows.sort(key=lambda r: (-r["_score"], "+" not in r["called_by"], r["chrom"], r["start"]))
+    rows.sort(key=lambda r: (-r["_score"], -r["_annot"], -r["_ndg"], "+" not in r["called_by"],
+                             r["chrom"], r["start"]))
     for i, r in enumerate(rows, 1):
         r["rank"] = i
 
@@ -792,8 +856,8 @@ def main():
             "best_gene", "tx", "location", "cds_pct", "frameshift", "gene_effect", "gene_relevance",
             "omim_phenotype", "gencc", "hi", "pli", "loeuf_bin", "n_disease_genes", "disease_genes",
             "known_pathogenic", "annotsv_score",
-            "annotsv_class", "annotsv_criteria", "max_af", "af_source", "db_occ", "segdup", "called_by",
-            "match_ro", "match_size_ratio", "start_delta", "end_delta"]
+            "annotsv_class", "annotsv_criteria", "max_af", "af_source", "db_occ", "segdup", "called_by", "gt_match",
+            "evidence_class", "match_ro", "match_size_ratio", "start_delta", "end_delta"]
     for lab in order:
         cols += [f"{lab}_{x}" for x in ("status", "id", "start", "end", "svlen", "qual", "gt",
                                          "alt_reads", "ref_reads", "vaf", "cn", "claim", "cov",
@@ -806,7 +870,17 @@ def main():
             w.writeheader()
             w.writerows(subset)
 
-    shortlist = [r for r in rows if r["_score"] > 0][: a.top_n]
+    # depth-only CNV segments have no junction evidence and tend to flood the list: cap them
+    shortlist, n_depth, n_depth_cut = [], 0, 0
+    for r in rows:
+        if r["_score"] <= 0 or len(shortlist) >= a.top_n:
+            break
+        if r["evidence_class"] == "depth-only":
+            if n_depth >= a.max_depth_only:
+                n_depth_cut += 1
+                continue
+            n_depth += 1
+        shortlist.append(r)
     write(a.output, shortlist)
     if a.output_all:
         write(a.output_all, rows)
@@ -815,6 +889,13 @@ def main():
     for (lab, what), n in sorted(stats.items()):
         print(f"[{lab}] {what}: {n:,}", file=sys.stderr)
     print(f"SVs scored: {len(rows):,}", file=sys.stderr)
+    if n_depth_cut:
+        print(f"depth-only CNV segments held back by --max-depth-only {a.max_depth_only}: {n_depth_cut} "
+              "(they are all in --output-all)", file=sys.stderr)
+    big = sum(1 for r in rows if r["_score"] > 0 and r["_svlen"] >= a.cnv_warn_len)
+    if big >= 3:
+        print(f"WARNING: {big} scored SVs of >= {a.cnv_warn_len / 1e6:g} Mb. That is unusual for constitutional "
+              "DNA; the sample may be a tumour/cell line or the CNV segmentation is noisy.", file=sys.stderr)
     print("shortlist by type:", dict(Counter(r["svtype"] for r in shortlist)), file=sys.stderr)
     print("shortlist by caller:", dict(Counter(r["called_by"] for r in shortlist)), file=sys.stderr)
     print(f"wrote {len(shortlist)} rows -> {a.output}; peak RAM {peak_ram_gb():.1f} GB", file=sys.stderr)

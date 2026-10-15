@@ -12,6 +12,10 @@ Per variant:  score = impact * rarity * confidence * bonuses
   bonus       x1.25 if a rare high/moderate variant has a partner in the same gene
               on the other haplotype (phased, same phase set, "in trans")
 
+Also: only chr1-22 and chrX are kept (alt/unplaced contigs, chrY and chrM skipped unless added with
+--include-contigs); non-coding and pseudogene transcripts and coding genes without a VEP GENE_PHENO
+flag are down-weighted (gene_rel); --mask-bed regions (segdups, low mappability) halve confidence.
+
 RAM: records that cannot reach the shortlist (impact below --min-impact, AF above
 --max-af, unless ClinVar P/LP) are skipped while streaming. Relax these two options
 only if you really need --output-all to contain everything.
@@ -47,6 +51,11 @@ CONF_WEIGHTS = {"qual": 0.35, "vaf": 0.25, "depth": 0.25, "strand": 0.15}
 SINGLE_CALLER_FACTOR = 0.75
 RARITY_COMMON = 0.05   # AF at/above this -> rarity 0
 RARITY_FLOOR = 1e-5    # AF at/below this -> rarity 1
+NONCODING_REL = 0.15   # gene relevance of lncRNA/other non-coding transcripts without a phenotype link
+PSEUDOGENE_REL = 0.10
+CODING_NO_PHENO_REL = 0.6   # protein-coding gene with no GENE_PHENO flag from VEP
+MASK_FACTOR = 0.5      # confidence x this inside a --mask-bed region (segdups, low mappability, ...)
+PRIMARY_RE = re.compile(r"^(chr)?([1-9]|1[0-9]|2[0-2]|X)$")
 KEEP_CSQ = ("SYMBOL", "Gene", "Feature", "BIOTYPE", "Consequence", "IMPACT", "HGVSc",
             "HGVSp", "CLIN_SIG", "SIFT", "PolyPhen", "MANE_SELECT", "Existing_variation",
             "GENE_PHENO")
@@ -258,6 +267,9 @@ def load_caller(path, label, a, fasta, stats, annot):
             continue
         chrom, pos, _id, ref, alts, qual, filt, info = f[:8]
         stats[(label, "records read")] += 1
+        if not contig_ok(chrom, a.include_contigs):
+            stats[(label, "skipped: contig not chr1-22/X (alt, unplaced, chrY, chrM)")] += 1
+            continue
         csq = next((x[4:] for x in info.split(";") if x.startswith("CSQ=")), None)
         if csq is None or not ix:
             stats[(label, "skipped: no CSQ annotation")] += 1
@@ -353,6 +365,59 @@ def caller_confidence(c, full_dp):
     return sum(CONF_WEIGHTS[k] * v for k, v in terms.items()) / w
 
 
+def contig_ok(chrom, extra):
+    """Primary autosomes + X only; alt/random/unplaced contigs, chrY and chrM are skipped unless added."""
+    return PRIMARY_RE.match(chrom) is not None or chrom in extra
+
+
+def gene_relevance(csq):
+    """(factor, note): non-coding and pseudogene transcripts rarely explain a phenotype."""
+    bio, pheno = csq.get("BIOTYPE", ""), csq.get("GENE_PHENO") == "1"
+    if not bio:
+        return 1.0, ""
+    if bio == "protein_coding":
+        return (1.0, "") if pheno else (CODING_NO_PHENO_REL, "no known gene-phenotype link")
+    if "pseudogene" in bio:
+        return PSEUDOGENE_REL, f"{bio} (not a functional gene)"
+    return (1.0, "") if pheno else (NONCODING_REL, f"non-coding transcript ({bio})")
+
+
+def load_masks(specs):
+    """--mask-bed NAME=PATH (BED, optionally gzipped) -> [(name, {chrom: (starts, ends)})]"""
+    masks = []
+    for spec in specs:
+        name, _, path = spec.partition("=") if "=" in spec else (os.path.basename(spec), "", spec)
+        by = defaultdict(list)
+        with (gzip.open(path, "rt") if path.endswith(".gz") else open(path)) as fh:
+            for line in fh:
+                f = line.split("\t")
+                if len(f) >= 3 and not line.startswith(("#", "track", "browser")):
+                    by[f[0]].append((int(f[1]), int(f[2])))
+        idx = {}
+        for chrom, iv in by.items():
+            iv.sort()
+            merged = [list(iv[0])]
+            for st, en in iv[1:]:
+                if st <= merged[-1][1]:
+                    merged[-1][1] = max(merged[-1][1], en)
+                else:
+                    merged.append([st, en])
+            idx[chrom] = ([m[0] for m in merged], [m[1] for m in merged])
+        masks.append((name, idx))
+    return masks
+
+
+def mask_hits(masks, chrom, pos):
+    hits = []
+    for name, idx in masks:
+        if chrom in idx:
+            starts, ends = idx[chrom]
+            i = bisect.bisect_right(starts, pos - 1) - 1
+            if i >= 0 and pos - 1 < ends[i]:
+                hits.append(name)
+    return hits
+
+
 def rarity_score(freq):
     f = RARITY_FLOOR if not freq else max(freq, RARITY_FLOOR)
     num = math.log10(RARITY_COMMON) - math.log10(f)
@@ -372,7 +437,8 @@ def pair_status(A, B, order):
 def compound_het(items, order):
     by_gene = defaultdict(list)
     for it in items:
-        if it["imp"] >= COMPHET_MIN_IMPACT_SCORE and (it["af"] is None or it["af"] < COMPHET_MAX_AF) \
+        if it["imp"] >= COMPHET_MIN_IMPACT_SCORE and it["rel"] >= CODING_NO_PHENO_REL \
+                and (it["af"] is None or it["af"] < COMPHET_MAX_AF) \
                 and it["gene"] and any(not c.hom for c in it["passed"].values()):
             by_gene[it["gene"]].append(it)
     n_trans = 0
@@ -410,16 +476,23 @@ def main():
     ap.add_argument("--output", required=True, help="shortlist TSV")
     ap.add_argument("--output-all", help="optional TSV with every scored variant")
     ap.add_argument("--top-n", type=int, default=100)
-    ap.add_argument("--full-credit-dp", type=int, default=20,
+    ap.add_argument("--full-credit-dp", type=int, default=30,
                     help="depth at which the depth term reaches 1.0 (default 20)")
     ap.add_argument("--min-impact", default="LOW", choices=list(IMPACT_RANK),
                     help="skip records whose most severe consequence is below this "
                          "(ClinVar P/LP always kept). Default LOW")
     ap.add_argument("--max-af", type=float, default=RARITY_COMMON,
                     help="skip records with MAX_AF at/above this (default 0.05; rarity is 0 above it anyway)")
+    ap.add_argument("--include-contigs", default="",
+                    help="comma list of extra contigs to keep, e.g. chrY,chrM (default: chr1-22 and chrX only)")
+    ap.add_argument("--mask-bed", action="append", default=[], metavar="NAME=PATH",
+                    help="BED of problematic regions (segdups, low mappability...); variants inside get "
+                         "confidence x0.5 (repeatable)")
     ap.add_argument("--progress-interval", type=float, default=None,
                     help="seconds between progress lines (default 1 on a terminal, 30 in logs)")
     a = ap.parse_args()
+    a.include_contigs = {c for c in a.include_contigs.split(",") if c}
+    masks = load_masks(a.mask_bed)
 
     inputs = [(lab, p) for lab, p in (("dv", a.deepvariant), ("nc", a.nanocaller)) if p]
     if not inputs:
@@ -453,12 +526,16 @@ def main():
         if cv == "benign":
             imp *= CLINVAR_BENIGN_FACTOR
         rar = rarity_score(af)
+        rel, rel_note = gene_relevance(csq)
         confs = {lab: caller_confidence(c, a.full_credit_dp) for lab, c in passed.items()}
         vals = [v for v in confs.values() if v is not None]
         conf = sum(vals) / len(vals) if vals else 0.0
         single = len(callers) > 1 and len(passed) == 1
         if single:
             conf *= SINGLE_CALLER_FACTOR
+        mhits = mask_hits(masks, chrom, pos) if masks else []
+        if mhits:
+            conf *= MASK_FACTOR
 
         gts = {frozenset(re.split(r"[/|]", c.gt)) for c in passed.values()}
         gt_match = "" if len(passed) < 2 else ("yes" if len(gts) == 1 else "NO")
@@ -468,11 +545,17 @@ def main():
             why.append(f"{impact} {csq.get('Consequence', '')}")
         if cv:
             why.append(f"ClinVar {cv}")
+        if rel_note:
+            why.append(rel_note)
         why.append("absent from gnomAD/1000G" if af is None else f"max AF {af:.2g}")
+        if "COSV" in csq.get("Existing_variation", ""):
+            why.append("COSMIC-listed (somatic hotspot? check sample type/mosaicism)")
+        if mhits:
+            why.append("in problematic region: " + ",".join(mhits))
         why.append("called by " + "+".join(l.upper() for l in passed) + (" (only one)" if single else ""))
         if gt_match == "NO":
             why.append("genotype disagrees between callers")
-        if any(c.hom for c in passed.values()) and imp >= COMPHET_MIN_IMPACT_SCORE \
+        if any(c.hom for c in passed.values()) and imp >= COMPHET_MIN_IMPACT_SCORE and rel >= CODING_NO_PHENO_REL \
                 and (af is None or af < COMPHET_MAX_AF):
             why.append("homozygous (recessive candidate)")
         for lab, c in present.items():
@@ -499,6 +582,8 @@ def main():
                "existing_variation": csq.get("Existing_variation", ""),
                "max_af": fmt(af), "called_by": "+".join(l.upper() for l in passed),
                "gt_match": gt_match, "gene_n_rare": "", "compound_het": "",
+               "gene_rel": fmt(rel, 2), "masks": ",".join(mhits),
+               "cosmic": "yes" if "COSV" in csq.get("Existing_variation", "") else "",
                "impact_score": fmt(imp, 2), "rarity_score": fmt(rar, 2), "conf_score": fmt(conf, 2)}
         for lab in callers:
             c = present.get(lab)
@@ -511,9 +596,9 @@ def main():
             row[f"{lab}_conf"] = fmt(confs.get(lab), 2)
         ps = next((c.ps for c in passed.values() if c.ps), "")
         row["phase_set"] = ps or ""
-        items.append({"row": row, "passed": passed, "imp": imp, "af": af, "why": why,
+        items.append({"row": row, "passed": passed, "imp": imp, "af": af, "why": why, "rel": rel,
                       "gene": csq.get("Gene") or csq.get("SYMBOL", ""),
-                      "score": imp * rar * conf})
+                      "score": imp * rel * rar * conf})
 
     n_trans = compound_het(items, order)
     for it in items:
@@ -530,7 +615,7 @@ def main():
             "gene_pheno", "existing_variation", "max_af", "called_by", "gt_match"]
     for lab in callers:
         cols += [f"{lab}_{x}" for x in ("status", "qual", "gt", "dp", "vaf", "alt_fwd_rev", "conf")]
-    cols += ["phase_set", "gene_n_rare", "compound_het", "impact_score", "rarity_score",
+    cols += ["phase_set", "gene_n_rare", "compound_het", "gene_rel", "masks", "cosmic", "impact_score", "rarity_score",
              "conf_score", "score", "reasons"]
 
     def write(path, subset):

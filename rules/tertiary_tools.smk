@@ -164,7 +164,7 @@ rule variants_ranking_snvs:
         "creating small variant ranking ..."
     shell:
         """
-        python scripts/score_variants.py --deepvariant {input.whats_snp} --nanocaller {input.nanoc_snp} --output {output.summary} --output-all {output.all_tsv} --reference {input.ref}  --top-n 100 >{log} 2>&1
+        python scripts/score_variants.py --deepvariant {input.whatsh_snp} --nanocaller {input.nanoc_snp} --output {output.summary} --output-all {output.all_tsv} --reference {input.ref}  --top-n 100 >{log} 2>&1
         """
 # python ../../../scripts/score_svs.py 
 #--sniffles ../annotsv_sniffles_m84115_251015_223806_s1.hifi_reads.bc2080/m84115_251015_223806_s1.hifi_reads.bc2080_phased_SV.annotated.tsv 
