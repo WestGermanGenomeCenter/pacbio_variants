@@ -4,11 +4,17 @@ prioritize_snvs.py (v2) - shortlist of plausible SNVs/indels from VEP-annotated
 DeepVariant and/or NanoCaller VCFs. Stdlib only.
 
 Per variant:  score = impact * rarity * confidence * bonuses
-  impact      VEP IMPACT of the most severe transcript (ClinVar P/LP overrides,
-              ClinVar benign is down-weighted)
-  rarity      from MAX_AF (fallback gnomADg/gnomADe/1000G AF); absent = rare
-  confidence  mean over callers that PASS: QUAL percentile, VAF vs genotype, depth,
-              strand balance (if ADF/ADR exist); x0.75 if only one of two callers
+  impact      VEP IMPACT on the PRIMARY transcript, chosen VEP-style (MANE Select / canonical
+              protein-coding first; a non-canonical coding transcript only if more severe;
+              NMD / retained-intron / non-coding only as a last resort). A more severe
+              consequence on another protein-coding transcript is reported, not scored.
+              ClinVar P/LP sets a floor of 0.9 (HIGH = 1.0); ClinVar benign is down-weighted.
+  rarity      from MAX_AF (fallback gnomADg/gnomADe/1000G AF); no frequency = rare, but
+              capped at 0.8 if the variant has an rsID; P/LP variants that are common are
+              kept with a low rarity floor and flagged
+  confidence  mean over callers that PASS: QUAL (saturating, per-caller scale), VAF consistency
+              with the genotype (two-sided binomial p-value, no penalty above p = 0.05),
+              depth, strand balance (if ADF/ADR exist); x0.75 if only one of two callers
   bonus       x1.25 if a rare high/moderate variant has a partner in the same gene
               on the other haplotype (phased, same phase set, "in trans")
 
@@ -40,12 +46,20 @@ from itertools import combinations
 # ---- tunable constants (placeholders, to be calibrated) -------------------------
 IMPACT_RANK = {"HIGH": 3, "MODERATE": 2, "LOW": 1, "MODIFIER": 0}
 IMPACT_SCORE = {"HIGH": 1.0, "MODERATE": 0.6, "LOW": 0.1, "MODIFIER": 0.0}
-CLINVAR_PLP_SCORE = 1.2
+CLINVAR_PLP_SCORE = 0.9      # floor for ClinVar P/LP (HIGH = 1.0)
+PLP_COMMON_RARITY_FLOOR = 0.15  # P/LP variants above --max-af are kept with this rarity
+RSID_NO_AF_RARITY = 0.8       # rsID present but no population frequency: not "maximally rare"
+ISOFORM_ONLY_REL = 0.3        # effect only on a retained-intron / NMD / similar isoform
+ISOFORM_ONLY_BIOTYPES = {"retained_intron", "nonsense_mediated_decay", "processed_transcript",
+                         "non_stop_decay", "protein_coding_CDS_not_defined", "TEC"}
+VAF_P_FULL = 0.05            # binomial p at/above which the VAF term is 1.0
+HOM_EXPECTED_VAF = 0.97
+QUAL_FULL = {"dv": 30.0, "nc": 30.0}   # QUAL at/above which the QUAL term saturates (to be calibrated, e.g. GIAB)
 CLINVAR_BENIGN_FACTOR = 0.1
 COMPHET_TRANS_BONUS = 1.25
 COMPHET_MAX_AF = 0.01          # partners must be rarer than this
 COMPHET_MIN_IMPACT_SCORE = 0.6 # ... and at least MODERATE (or ClinVar P/LP)
-COMPHET_MAX_GENE_N = 300       # skip pairing in genes with more candidates
+COMPHET_MAX_GENE_N = 30        # skip pairing in genes with more candidates
 FREQ_FALLBACK = ("gnomADg_AF", "gnomADe_AF", "AF")
 CONF_WEIGHTS = {"qual": 0.35, "vaf": 0.25, "depth": 0.25, "strand": 0.15}
 SINGLE_CALLER_FACTOR = 0.75
@@ -237,12 +251,12 @@ def pick_csq(csq, ix, alleles):
         pick = best_c if (best_t1 is None or best_c[0] > best_t1[0]) else best_t1
     else:
         pick = max(ents, key=lambda e: (e[0], e[1]))
-    worst = max(ents, key=lambda e: e[0])
+    worst = max(cods, key=lambda e: e[0]) if cods else None   # "credible" = protein-coding
     best = pick[3]
     out = {k: g(best, ix.get(k, -1)) for k in KEEP_CSQ}
     out["other_tx"] = ""
     out["non_canon"] = not pick[1]
-    if worst[0] > pick[0] and worst[0] >= IMPACT_RANK["MODERATE"]:
+    if worst and worst[0] > pick[0] and worst[0] >= IMPACT_RANK["MODERATE"]:
         w = worst[3]
         out["other_tx"] = (f"{g(w, iimp)} {g(w, ix.get('Consequence', -1))} on "
                            f"{g(w, ix.get('Feature', -1))} ({g(w, ibio)})")
@@ -258,7 +272,7 @@ def pick_csq(csq, ix, alleles):
 
 class Call:
     __slots__ = ("qual", "filt", "status", "gt", "hom", "dp", "vaf", "alt_f", "alt_r",
-                 "ps", "hap", "qual_pct")
+                 "ps", "hap", "qual_pct", "alt_n", "tot_n", "vaf_p")
 
 
 def better(new, old):
@@ -316,7 +330,7 @@ def load_caller(path, label, a, fasta, stats, annot):
                 stats[(label, "skipped: no CSQ entry for allele")] += 1
                 continue
             if (IMPACT_RANK.get(c["IMPACT"], -1) < min_rank and c["cv"] != "P/LP") or \
-               (c["max_af"] is not None and c["max_af"] >= a.max_af):
+               (c["max_af"] is not None and c["max_af"] >= a.max_af and c["cv"] != "P/LP"):
                 stats[(label, "skipped by pre-filter (impact/AF)")] += 1
                 continue
             p2, r2, a2 = normalize(chrom, pos, ref, alt, fasta)
@@ -326,7 +340,7 @@ def load_caller(path, label, a, fasta, stats, annot):
 
             call = Call()
             call.qual, call.filt, call.gt = to_float(qual), filt, gt
-            call.hom = len(set(gt_alleles)) == 1
+            call.hom = all(g_ == str(i + 1) for g_ in gt_alleles)   # this alt on every copy (False for ./. and 0/0)
             if filt not in ("PASS", "."):
                 call.status = filt
             elif str(i + 1) not in gt_alleles:
@@ -341,7 +355,14 @@ def load_caller(path, label, a, fasta, stats, annot):
                 v = (d.get("VAF") or d.get("VF") or "").split(",")
                 call.vaf = to_float(v[i]) if len(v) > i else None
             call.dp = int(d["DP"]) if d.get("DP", ".").isdigit() else None
+            call.alt_f = adf[i + 1] if adf and len(adf) > i + 1 else None
+            call.alt_r = adr[i + 1] if adr and len(adr) > i + 1 else None
             alt_n = ad[i + 1] if ad and len(ad) > i + 1 else None
+            if alt_n is None and call.alt_f is not None and call.alt_r is not None:
+                alt_n = call.alt_f + call.alt_r
+            call.alt_n = alt_n
+            call.tot_n = sum(ad) if ad and sum(ad) > 0 else call.dp
+            call.vaf_p = None
             if call.status == "PASS":
                 if call.dp is not None and call.dp < a.min_dp:
                     call.status = "low_dp"
@@ -349,8 +370,6 @@ def load_caller(path, label, a, fasta, stats, annot):
                     call.status = "low_alt_reads"
                 elif not call.hom and call.vaf is not None and call.vaf < a.min_vaf:
                     call.status = "low_vaf"
-            call.alt_f = adf[i + 1] if adf and len(adf) > i + 1 else None
-            call.alt_r = adr[i + 1] if adr and len(adr) > i + 1 else None
             ps = d.get("PS", ".")
             call.ps = None if ps in (".", "") else ps
             call.hap = None
@@ -375,20 +394,37 @@ def load_caller(path, label, a, fasta, stats, annot):
     return calls
 
 
-def add_qual_percentiles(calls):
-    passed = [c for c in calls.values() if c.status == "PASS"]
-    quals = sorted(c.qual for c in passed if c.qual is not None)
-    for c in passed:
-        c.qual_pct = (bisect.bisect_left(quals, c.qual) / (len(quals) - 1)
-                      if c.qual is not None and len(quals) > 1 else None)
+def add_qual_terms(calls, label, full):
+    """QUAL -> 0..1, saturating at `full` (per caller). Not a percentile: a weak candidate set
+    should not manufacture zeros, and callers' QUAL scales differ."""
+    for c in calls.values():
+        c.qual_pct = min(c.qual / full, 1.0) if (c.status == "PASS" and c.qual is not None) else None
 
 
 # ---------------------------------------------------------------- scoring ----------
-def caller_confidence(c, full_dp):
+def binom_two_sided_p(k, n, p):
+    """Exact two-sided binomial p-value (sum of outcomes no more likely than k)."""
+    if n <= 0:
+        return 1.0
+    p = min(max(p, 1e-6), 1 - 1e-6)
+    lg, lp, lq = math.lgamma, math.log(p), math.log(1 - p)
+
+    def logpmf(x):
+        return lg(n + 1) - lg(x + 1) - lg(n - x + 1) + x * lp + (n - x) * lq
+
+    ref = logpmf(k) + 1e-9
+    return min(1.0, sum(math.exp(l) for l in (logpmf(x) for x in range(n + 1)) if l <= ref))
+
+
+def caller_confidence(c, full_dp, vaf_model="binomial"):
     terms = {}
     if c.qual_pct is not None:
         terms["qual"] = c.qual_pct
-    if c.vaf is not None:
+    if vaf_model == "binomial" and c.alt_n is not None and c.tot_n:
+        # soft consistency with the genotype: no penalty unless the alt-read count is implausible
+        c.vaf_p = binom_two_sided_p(c.alt_n, c.tot_n, HOM_EXPECTED_VAF if c.hom else 0.5)
+        terms["vaf"] = min(1.0, c.vaf_p / VAF_P_FULL)
+    elif vaf_model == "binomial" and c.vaf is not None:
         terms["vaf"] = max(0.0, 1 - abs(c.vaf - (1.0 if c.hom else 0.5)) / 0.5)
     if c.dp is not None:
         terms["depth"] = min(c.dp / full_dp, 1.0)
@@ -412,6 +448,8 @@ def gene_relevance(csq):
         return 1.0, ""
     if bio == "protein_coding":
         return (1.0, "") if pheno else (CODING_NO_PHENO_REL, "no known gene-phenotype link")
+    if bio in ISOFORM_ONLY_BIOTYPES:      # gene-level phenotype flags do not rescue these
+        return ISOFORM_ONLY_REL, f"effect only on a {bio} isoform"
     if "pseudogene" in bio:
         return PSEUDOGENE_REL, f"{bio} (not a functional gene)"
     return (1.0, "") if pheno else (NONCODING_REL, f"non-coding transcript ({bio})")
@@ -546,6 +584,11 @@ def main():
                     help="calls with fewer alt reads do not count as PASS (4; 0 = off)")
     ap.add_argument("--min-vaf", type=float, default=0.2,
                     help="het calls below this VAF do not count as PASS (0.2; 0 = off)")
+    ap.add_argument("--vaf-model", choices=["binomial", "off"], default="binomial",
+                    help="VAF-vs-genotype term: exact binomial consistency (default) or off "
+                         "(use off for tumour/mosaic samples)")
+    ap.add_argument("--qual-full-dv", type=float, default=QUAL_FULL["dv"], help="DeepVariant QUAL that saturates the QUAL term (30)")
+    ap.add_argument("--qual-full-nc", type=float, default=QUAL_FULL["nc"], help="NanoCaller QUAL that saturates the QUAL term (30)")
     ap.add_argument("--cluster-window", type=int, default=2000,
                     help="window (bp) for the dense-cluster check (2000)")
     ap.add_argument("--cluster-min", type=int, default=3,
@@ -559,6 +602,7 @@ def main():
                     help="seconds between progress lines (default 1 on a terminal, 30 in logs)")
     a = ap.parse_args()
     a.include_contigs = {c for c in a.include_contigs.split(",") if c}
+    a.qual_full = {"dv": a.qual_full_dv, "nc": a.qual_full_nc}
     masks = load_masks(a.mask_bed)
 
     inputs = [(lab, p) for lab, p in (("dv", a.deepvariant), ("nc", a.nanocaller)) if p]
@@ -574,7 +618,7 @@ def main():
     for lab, path in inputs:
         print(f"[{lab}] reading {path}", file=sys.stderr)
         callers[lab] = load_caller(path, lab, a, fasta, stats, annot)
-        add_qual_percentiles(callers[lab])
+        add_qual_terms(callers[lab], lab, a.qual_full.get(lab, 30.0))
     order = list(callers)
 
     keys = set().union(*callers.values())
@@ -589,12 +633,21 @@ def main():
             continue
         csq = annot.get(key, {})
         impact, cv, af = csq.get("IMPACT", ""), csq.get("cv", ""), csq.get("max_af")
-        imp = CLINVAR_PLP_SCORE if cv == "P/LP" else IMPACT_SCORE.get(impact, 0.0)
+        imp = IMPACT_SCORE.get(impact, 0.0)
+        if cv == "P/LP":
+            imp = max(imp, CLINVAR_PLP_SCORE)
         if cv == "benign":
             imp *= CLINVAR_BENIGN_FACTOR
         rar = rarity_score(af)
+        rar_note = ""
+        if cv == "P/LP" and af is not None and af >= a.max_af:
+            rar = max(rar, PLP_COMMON_RARITY_FLOOR)
+            rar_note = f"ClinVar P/LP but common (AF {af:.2g}): check review status/penetrance"
+        elif not af and re.search(r"(^|&)rs\d+", csq.get("Existing_variation", "")):
+            rar = min(rar, RSID_NO_AF_RARITY)
+            rar_note = "has an rsID but no population frequency"
         rel, rel_note = gene_relevance(csq)
-        confs = {lab: caller_confidence(c, a.full_credit_dp) for lab, c in passed.items()}
+        confs = {lab: caller_confidence(c, a.full_credit_dp, a.vaf_model) for lab, c in passed.items()}
         vals = [v for v in confs.values() if v is not None]
         conf = sum(vals) / len(vals) if vals else 0.0
         single = len(callers) > 1 and len(passed) == 1
@@ -624,10 +677,10 @@ def main():
         if csq.get("non_canon") and csq.get("IMPACT") in ("HIGH", "MODERATE"):
             why.append("effect only on a non-canonical transcript")
         if csq.get("other_tx"):
-            why.append("more severe only on another transcript: " + csq["other_tx"])
+            why.append("more severe on another protein-coding transcript: " + csq["other_tx"])
         if prob_note:
             why.append(prob_note)
-        why.append("absent from gnomAD/1000G" if af is None else f"max AF {af:.2g}")
+        why.append(rar_note or ("absent from gnomAD/1000G" if af is None else f"max AF {af:.2g}"))
         if "COSV" in csq.get("Existing_variation", ""):
             why.append("COSMIC-listed (somatic hotspot? check sample type/mosaicism)")
         if mhits:
@@ -649,8 +702,8 @@ def main():
                 t = c.alt_f + c.alt_r
                 if t >= 4 and min(c.alt_f, c.alt_r) / t < 0.1:
                     why.append(f"strand-biased alt reads {L}")
-            if c.vaf is not None and abs(c.vaf - (1.0 if c.hom else 0.5)) > 0.25:
-                why.append(f"VAF off expectation {L} ({c.vaf:.2f})")
+            if c.vaf_p is not None and c.vaf_p < VAF_P_FULL:
+                why.append(f"VAF {c.vaf:.2f} atypical for genotype {c.gt} on {L} (binomial p={c.vaf_p:.2g})")
 
         row = {"locus": f"{chrom}:{pos}", "chrom": chrom, "pos": pos, "ref": ref, "alt": alt,
                "symbol": csq.get("SYMBOL") or csq.get("Gene", ""),
