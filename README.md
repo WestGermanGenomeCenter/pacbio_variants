@@ -1,166 +1,470 @@
 # pb_variants 
-A snakemake 9 based Pipeline for hifi snp, sv, cnv calling, phasing and more
 
-Only PacBio data for now
+    # PacBio HiFi Variant Analysis Pipeline
 
-__!!THIS PIPLINE IS IN-DEVELOPMENT AND EXPERIMENTAL, USE AT YOUR OWN RISK!!__
+A Snakemake 9 pipeline for PacBio HiFi sequencing data, providing alignment, small-variant and structural-variant calling, phasing, annotation, caller comparison, and candidate prioritization.
 
-## what this tool aims to deliver:
-    - newest and best tools suited for HiFi data (only for now)
-    - singletons analysis 
-    - human-first (hg38 for now), others should be possible (untested)
+**Repository:** [WestGermanGenomeCenter/pacbio_variants](https://github.com/WestGermanGenomeCenter/pacbio_variants)
 
+> **Development status:** This pipeline is under active development and remains experimental. Validate results carefully before using them for clinical interpretation.
 
-## included tools:
-- deepvariant or bcftools for snp calling
-- snps get used for phasing with whatshap and longphase
-- paraphase 
-- trgt
-- hificnv 
-- pb-cpg-tools (uses whatshap phased .bam file)
-- mitorsaw (just hg38)
-- sniffles for sv calls that get phased with longphase
-- sawfish for svs and cnvs (results phased by sawfish)
-- mosdepth, multiqc
-- pbmm2 for mapping
-- kraken2 for contamination detection (downsamples massively, needs kraken2 database)
-- demultiplexing of input as option, will not split the files per barcode.
-- for now one .bam per sample
-- NanoCaller for phased snp/indel calls
-- Variants get annotated if configured through config.yaml:
-    - SVs with sansa and AnnotSV
-    - SNPs with vep and snpsift
-    - both only tested with hg38 for now
-- if enabled, SNPs and SVs get overlaped (compared)
-    - svs: truvari overlaps sniffles as the "truth" to sawfish data for each sample
-    - snps: rtg-tools overlaps deepvariant or bcftools snps as the "truth" to nanocaller snps for each sample
-- if enabled, paraphase results get visualized with paraviewer
+## Overview
 
-## how to run
-- make sure you have a conda environment active with snakemake9+ (called smk9 in the runPipeline_local.sh)
-    - this can also be achieved by running the included setupPipeline_hpc.sh
-        - that script uses conda to create the env smk9 - with snakemake 9 installed already (check file smk9.yaml)
-- cp/mv/ln your unmapped .bam file into the root folder of this directory (pb_variants/your_bam_file_here.bam)
-- edit samplesheet.csv with your filename 
-    - one sample per line, do not delete the header line (add to line2: your_bam_file_here.bam)
-- edit config.yaml to your liking/ folder structure (enable only things you want / need. keep in mind some analysis are hg38 only)
-- make sure you are in an interactive terminal session inside a screen / tmux or similar
-- bash runPipeline_local.sh for local installment on single-server setups, 
-- bash runPipeline.sh on HPC 
-- non-hpc users need to edit the config.yaml and enable deepvariant and disable deepvariant_hpc in the config.yaml:
-use_deepvariant_hpc: True <- only set this to True on HPC HILBERT
+The pipeline combines multiple variant callers and analysis tools to provide complementary evidence for variants identified in PacBio HiFi data. It is designed primarily for human genome analysis using GRCh38/hg38.
 
+The main objectives are to:
 
-# DAG
-Before each start, a DAG is created visualising the planned tasks for each sample.
-An example:
+- Provide a reproducible, configurable workflow for PacBio HiFi data.
+- Combine small-variant, structural-variant, copy-number, repeat-expansion, and phasing analyses.
+- Annotate variants with functional and genomic information.
+- Compare results from different callers to identify concordant and discordant calls.
+- Rank and prioritize candidate variants using annotation, rarity, call-level confidence, and supporting evidence.
+- Produce QC reports and analysis outputs suitable for further inspection.
 
-![alt text](dag.png)
+The workflow is primarily designed for single-sample analysis. Other reference genomes and analysis configurations may be possible but require validation.
 
-All options enabled:
+## Workflow components
 
-![alt text](full.png)
+### 1. Input processing and alignment
 
-Minimalistic execution (and bcftools instead of Deepvariant) with only mandatory tasks:
+- Accepts PacBio HiFi BAM files as input.
+- Removes kinetic information from the input BAM when configured, while retaining methylation information, to reduce the data processed by downstream steps.
+- Supports optional demultiplexing.
+- Aligns reads using `pbmm2`.
 
-![alt text](minimalistic.png)
+The current workflow expects one input BAM per sample. Input files should be prepared according to the requirements of the selected analysis tools.
 
+### 2. Quality control
+
+- `mosdepth` for sequencing coverage and depth statistics.
+- `Kraken2` for optional contamination screening, requiring a compatible database.
+- `MultiQC` for consolidating supported QC reports.
+
+### 3. Variant calling
+
+| Analysis | Tools |
+|---|---|
+| SNPs and small indels | DeepVariant or bcftools |
+| Additional small variants | NanoCaller |
+| SNP and indel phasing | WhatsHap and LongPhase |
+| Structural variants (SVs) | Sniffles and Sawfish |
+| Copy-number variants (CNVs) | HiFiCNV and Sawfish |
+| Tandem-repeat expansions | TRGT |
+| Repeat-associated analysis | Paraphase |
+| Mitochondrial variants | MitoSaw |
+
+The exact set of analyses depends on the configuration and availability of required input data and reference resources.
+
+Sniffles structural variants can be phased with LongPhase. Sawfish produces its own SV/CNV calls and associated phasing information.
+
+### 4. Phasing and methylation
+
+The workflow supports haplotype-aware analysis using WhatsHap and LongPhase.
+
+Where enabled, the WhatsHap-phased BAM is used by `pb-CpG-tools` to generate methylation tracks. The resulting BED and BigWig files can be inspected in IGV alongside the corresponding phased alignment.
+
+### 5. Variant annotation
+
+When enabled in `config.yaml`:
+
+- **Small variants:** Ensembl VEP and SnpSift.
+- **Structural variants:** AnnotSV and SANSA.
+
+The current annotation setup has primarily been tested with hg38. Annotation provides functional and genomic context but does not independently establish pathogenicity.
+
+### 6. Caller comparison and concordance
+
+When enabled:
+
+- **Small variants:** RTG Tools compares NanoCaller calls against DeepVariant or bcftools calls.
+- **Structural variants:** Truvari compares Sawfish calls against Sniffles calls, using Sniffles as the comparison reference in this workflow.
+
+Caller agreement is supporting evidence, not proof that a variant is real. Disagreement does not necessarily mean that either caller is wrong.
+
+### 7. Variant ranking and candidate prioritization
+
+Two optional Snakemake rules rank annotated variants:
+
+| Snakemake rule | Script | Variant type |
+|---|---|---|
+| `variants_ranking_snvs` | `scripts/score_variants.py` | SNVs and small indels |
+| `variants_ranking_svs` | `scripts/score_svs.py` | Structural variants |
+
+Both rules produce a top-100 shortlist and a full scored TSV for each sample. The scripts use Python's standard library and operate on annotated upstream results.
+
+Ranking scores are prioritization metrics, not calibrated probabilities of pathogenicity or clinical classifications.
+
+#### 7.1 SNV and indel ranking
+
+The rule `variants_ranking_snvs` uses VEP-annotated VCFs from WhatsHap-derived calls and NanoCaller.
+
+**Inputs**
+
+- `{output_dir}/annotated_variants/vep_whatshap_{sample}/{sample}_vep_whatshap_annotated.vcf`
+- `{output_dir}/annotated_variants/vep_nanocaller_{sample}/{sample}_vep_nanocaller_annotated.vcf`
+- Reference FASTA specified by `config["reference"]`.
+
+The score combines impact, rarity, confidence, and bonuses:
+
+\[
+\text{Score}=\text{Impact}\times\text{Rarity}\times\text{Confidence}\times\text{Bonuses}
+\]
+
+**Impact**
+
+- Uses the VEP impact of the most severe transcript consequence.
+- ClinVar pathogenic/likely pathogenic classifications can override the usual impact assessment.
+- ClinVar benign classifications are down-weighted.
+- Non-coding and pseudogene transcripts are down-weighted.
+- Coding genes without the VEP `GENE_PHENO` flag are down-weighted through gene-relevance weighting.
+
+**Rarity**
+
+- Uses `MAX_AF` when available.
+- Falls back to gnomAD genomes, gnomAD exomes, and 1000 Genomes allele frequencies.
+- Missing frequency information is treated as rare.
+
+**Confidence**
+
+Combines QUAL percentile, allele fraction relative to genotype, depth, and strand balance when ADF/ADR information is available.
+
+A variant supported by only one of two supplied callers receives a confidence multiplier of 0.75.
+
+**Phased in-trans partner bonus**
+
+Rare, high- or moderate-impact variants receive a bonus when a suitable partner occurs in the same gene on the opposite haplotype and within the same phase set. This helps prioritize candidates potentially relevant to recessive disease models but does not prove a disease-causing genotype.
+
+**Region and contig handling**
+
+- Regions supplied through `--mask-bed`, such as segmental duplications or low-mappability regions, reduce confidence by half.
+- By default, only chromosomes 1–22 and X are retained.
+- Alternate and unplaced contigs, chromosome Y, and mitochondrial contigs are excluded unless explicitly included using `--include-contigs`.
+
+The script streams through records and skips variants that cannot meet configured impact and allele-frequency thresholds. Therefore, the full scored output does not necessarily contain every record from the original VCF.
+
+**Outputs**
+
+| Output | Path |
+|---|---|
+| Top-100 shortlist | `{output_dir}/ranked_variants/{sample}/{sample}_variants_ranked_top_n.tsv` |
+| Full scored results | `{output_dir}/ranked_variants/{sample}/{sample}_variants_ranked.tsv` |
+| Log | `{output_dir}/logs/rank_snps_{sample}.log` |
+
+Equivalent standalone invocation:
+
+```bash
+python scripts/score_variants.py \
+    --deepvariant annotated_whatshap.vcf \
+    --nanocaller annotated_nanocaller.vcf \
+    --reference reference.fasta \
+    --output snv_shortlist.tsv \
+    --output-all snv_all_scored.tsv \
+    --top-n 100
+```
+
+The current Snakemake rule passes the WhatsHap-derived annotated VCF to the `--deepvariant` argument. This reflects the existing command interface and does not mean that the file was necessarily generated directly by DeepVariant without intermediate processing.
+
+#### 7.2 Structural-variant ranking
+
+The rule `variants_ranking_svs` uses AnnotSV-annotated Sniffles and Sawfish TSV files.
+
+**Inputs**
+
+- `{output_dir}/annotated_variants/annotsv_sniffles_{sample}/{sample}_phased_SV.annotated.tsv`
+- `{output_dir}/annotated_variants/annotsv_sawfish_{sample}/{sample}_genotyped.sv.annotated.tsv`
+
+The score combines impact, rarity, and confidence:
+
+\[
+\text{Score}=\text{Impact}\times\text{Rarity}\times\text{Confidence}
+\]
+
+**Impact**
+
+Combines gene effects and relevance, coding/exon overlap appropriate to SV type, OMIM and GenCC evidence, haploinsufficiency, pLI, LOEUF, known pathogenic overlaps from AnnotSV `P_*_source` fields, and the AnnotSV ranking score.
+
+AnnotSV classes 1–2 are down-weighted when the ranking score is at or below −0.9.
+
+**Rarity**
+
+Uses maximum allele frequencies from overlapping benign SV annotations in AnnotSV `B_*_AFmax` fields, matched to SV type, and available SVDB/CoLoRSdb-style INFO annotations. Missing frequency information is treated as rare.
+
+**Confidence**
+
+Combines QUAL percentile, alternate-read support, allele fraction relative to genotype, sequencing depth, and the Sniffles `PRECISE` flag where available.
+
+- A variant supported by only one of two supplied callers receives a confidence multiplier of 0.75.
+- Segmental duplications and gaps reduce confidence by a factor of 0.8.
+- Blacklisted regions reduce confidence by a factor of 0.6.
+
+**Matching Sniffles and Sawfish calls**
+
+- Deletions, duplications, and inversions are compared using reciprocal overlap.
+- Insertions and breakends are compared using breakpoint distance and size ratio.
+
+Non-PASS records are retained in the scored output rather than being automatically discarded. Their filtering status should be considered during interpretation.
+
+**Outputs**
+
+| Output | Path |
+|---|---|
+| Top-100 shortlist | `{output_dir}/ranked_variants/{sample}/{sample}_svs_ranked_top_n.tsv` |
+| Full scored results | `{output_dir}/ranked_variants/{sample}/{sample}_svs_ranked.tsv` |
+| Log | `{output_dir}/logs/rank_svs_{sample}.log` |
+
+Equivalent standalone invocation:
+
+```bash
+python scripts/score_svs.py \
+    --sniffles sniffles.annotated.tsv \
+    --sawfish sawfish.annotated.tsv \
+    --output sv_shortlist.tsv \
+    --output-all sv_all_scored.tsv \
+    --top-n 100
+```
+
+#### 7.3 Interpreting ranked candidates
+
+Ranking can help researchers:
+
+1. Identify variants with potentially relevant functional consequences.
+2. Prioritize rare candidates supported by read-level evidence.
+3. Review concordance and discordance across callers.
+4. Investigate phased variants and possible in-trans combinations.
+5. Filter and sort candidates for downstream biological interpretation.
+
+A high score does not establish pathogenicity. A low score does not exclude a causal variant: evidence may be missing, a caller may fail to detect the variant, or the scoring assumptions may not fit the disease mechanism.
+
+Review the original calls, read evidence, annotations, inheritance model, and relevant biological or clinical evidence before drawing conclusions.
+
+The ranking rules use `../envs/rtgtools.yaml` as their Conda environment definition. They run when their outputs are requested by the selected Snakemake workflow target, provided the required annotated inputs are available.
+
+### 8. Paraphase visualization
+
+When enabled, Paraphase results can be visualized using Paraviewer.
+
+## Requirements
+
+- Linux environment with sufficient CPU, memory, and storage.
+- Conda or a compatible environment manager.
+- Snakemake 9 or later.
+- PacBio HiFi BAM input files.
+- Reference genome and annotation resources appropriate for the selected analyses.
+- Additional databases for optional tools such as Kraken2, VEP, and AnnotSV.
+- Access to the HPC scheduler and software resources when running on a cluster.
+
+Individual rules may have additional requirements. See `envs/`, the workflow rules, and `config.yaml`.
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/WestGermanGenomeCenter/pacbio_variants.git
+cd pacbio_variants
+```
+
+### HPC installation
+
+The repository includes `setupPipeline_hpc.sh` and `smk9.yaml` for setting up the Conda environment.
+
+```bash
+bash setupPipeline_hpc.sh
+conda activate smk9
+snakemake --version
+```
+
+Follow the setup script's output and ensure that required environments and reference resources are accessible before starting a full analysis.
+
+## Preparing an analysis
+
+### 1. Place the input BAM files
+
+Place or link the input BAM files in the pipeline root directory unless the configured input paths specify another location.
+
+Example structure:
+
+```text
+pacbio_variants/
+├── sample_001.bam
+├── sample_002.bam
+├── samplesheet.csv
+├── config.yaml
+├── Snakefile
+├── scripts/
+│   ├── score_variants.py
+│   └── score_svs.py
+├── rules/
+└── envs/
+```
+
+The names above are illustrative.
+
+### 2. Configure the samplesheet
+
+Edit `samplesheet.csv`. Keep the existing header and add one input BAM filename per sample according to the provided template.
+
+### 3. Configure the pipeline
+
+Edit `config.yaml` to specify the desired analyses, reference resources, and input/output paths.
+
+In particular:
+
+- Set the output directory appropriately.
+- Enable only the analyses you need.
+- Check all reference genome and annotation resource paths.
+- Configure optional tools and databases.
+- Enable the HPC-specific DeepVariant configuration only when using the supported HPC setup.
+- Request the SNV and/or SV ranking outputs when ranked candidate files are required.
+
+The current annotation setup has primarily been tested with hg38. Changing the reference genome alone does not guarantee compatibility across every component.
+
+## Running the pipeline
+
+### On an HPC system
+
+Start a persistent terminal session, such as `screen` or `tmux`, and obtain an interactive HPC allocation according to local cluster policy.
+
+```bash
+cd pacbio_variants
+conda activate smk9
+bash runPipeline.sh
+```
+
+The execution environment and scheduler settings must match the target cluster.
+
+### On a local server
+
+```bash
+cd pacbio_variants
+conda activate smk9
+bash runPipeline_local.sh
+```
+
+Configure DeepVariant for the local environment rather than using HPC-specific execution settings.
+
+### Minimal or bare-bones execution
+
+The repository also provides `runPipeline_barebone.sh`. Consult the script and current configuration to determine which steps it includes before using it for a production analysis.
+
+## Workflow DAGs
+
+Before execution, the pipeline generates a directed acyclic graph (DAG) showing the planned tasks and dependencies. The repository also provides example DAG images for understanding the workflow.
+
+### Complete workflow
+
+The complete DAG illustrates the workflow when all options are enabled.
+
+![Complete PacBio variant pipeline DAG](full.png)
+
+### Minimal workflow
+
+The minimal DAG illustrates a reduced execution with mandatory tasks and bcftools instead of DeepVariant.
+
+![Minimal PacBio variant pipeline DAG](minimalistic.png)
+
+### Additional DAG view
+
+The repository also includes an additional DAG image.
+
+![PacBio variant pipeline DAG](dag.png)
+
+These images are examples of workflow structure. The exact DAG generated for a run depends on the configuration, requested targets, and available inputs.
+
+## Monitoring and troubleshooting
+
+On PBS Pro systems, inspect queued and running jobs with:
+
+```bash
+qstat -u "$USER"
+```
+
+Check:
+
+- The configured output directory for generated results.
+- The pipeline's log directory for rule-specific errors.
+- Scheduler logs, including the configured cluster log directory.
+- Snakemake output for failed rules and dependency errors.
+
+Ranking-specific logs are written to:
+
+```text
+{output_dir}/logs/rank_snps_{sample}.log
+{output_dir}/logs/rank_svs_{sample}.log
+```
+
+Inspect these logs if ranking rules fail or their expected outputs are missing.
+
+A generated MultiQC report is a useful completion indicator, but verify that all required rules succeeded and that the expected outputs exist.
+
+If a run is interrupted, inspect the logs and Snakemake summary before restarting. Resume behaviour depends on the execution script and the state of existing outputs.
 
 ## Output files
-- the first step of the pipeline is to strip the kinetics data out of the .bam input file, but keep the methylation data. This makes all following processes much faster without any real data loss. 
-- for each input sample:
-    - mosdepth and kraken (optional) report that get summarized with multiqc
-    - mapped .bam file haplotaged with whatshap and longphase
-    - the with whatshap phased bam is used for methylation track generation with cpg_tools
-    - bed/bw file for methylation tracks for IGV, should be used together with the whatshap phased output .bam file
-    - .vcf(.gz) file for:
-        - snps / indels from deepvariant or bcftools, phased with whatshap and longphase
-        - trgt
-        - paraphase
-        - mitorsaw
-        - hificnv
-        - sawfish sv / cnv 
-        - svs from sniffles phased with longphase
-        - snps / indels from nanocaller
-    - phased snps and svs get annotated with snpsift and sansa and annotsv and vep   
-- snakemake report, rulegraph, copy of samplesheet and config.yaml with timestamp
 
+The output directory contains results organized into subdirectories according to the configuration and analysis steps.
 
-# general workflow in short:
+| Output category | Contents |
+|---|---|
+| Alignments | Mapped BAM files and associated indexes |
+| Phasing | Phased BAM and VCF outputs |
+| Small variants | SNP and indel calls from enabled callers |
+| Structural variants and CNVs | SV and CNV calls from enabled callers |
+| Repeat analysis | TRGT and Paraphase outputs |
+| Mitochondrial analysis | MitoSaw results, where enabled |
+| Methylation | BED and BigWig tracks, where enabled |
+| Annotation | Annotated small-variant and structural-variant results |
+| Caller comparison | Outputs from RTG Tools and Truvari, where enabled |
+| SNV/indel ranking | `{sample}_variants_ranked_top_n.tsv` and `{sample}_variants_ranked.tsv` |
+| SV ranking | `{sample}_svs_ranked_top_n.tsv` and `{sample}_svs_ranked.tsv` |
+| Quality control | Coverage, contamination-screening, and MultiQC reports |
+| Workflow records | Snakemake reports, rule graphs, configuration snapshots, and samplesheet copies |
 
-## prep the files:
+Ranking results are stored under:
 
-1. - move all .bam files into the folder pb_variants. (up to 100 at once makes sense, more overloads the hpc for sure)
-	- with methylation, no kinetics needed
+```text
+{output_dir}/ranked_variants/{sample}/
+```
 
-2. - edit the config.yaml according to your needs. Mostly True/False. If unsure, keep as is but CHANGE THE OUTPUT DIRECTORY
+The `*_ranked_top_n.tsv` files contain the top candidates requested by the rule, currently 100 per ranking script. The corresponding `*_ranked.tsv` files contain the full scored results retained by the scripts' filtering logic.
 
-3. - edit the samplesheet.csv: keep the first line and then list all .bam files that you want to analyze in the run. all files listed in that file NEED TO BE IN THE FOLDER 
+The exact files and subdirectories depend on the selected configuration.
 
-## now the actual pipeline execution:
+## Reproducibility and interpretation
 
-1. - start a screen session on the hpc
+Retain the configuration and samplesheet used for each analysis, together with workflow logs, software environment definitions, and the repository version or commit.
 
-2. - start an interactive job inside the screen session with at least 2 days runtime
+For candidate review:
 
-3. - cd into the folder pb_variants
+1. Confirm that the relevant calling and annotation steps completed successfully.
+2. Check the reference assembly and annotation versions.
+3. Inspect caller concordance and discordant calls.
+4. Review the evidence and scoring components used by the ranking scripts.
+5. Inspect the underlying variant calls and annotations before drawing biological conclusions.
 
-4. - activate the correct conda env with: "conda activate smk9"
+Ranked candidates support prioritization; they are not automatically validated findings or clinical diagnoses.
 
-5. - run the pipeline with:"bash runPipeline.sh"
+## Development roadmap
 
+Potential future improvements include:
 
-## supervising the run:
+- Further integration and validation of variant annotation resources.
+- Improvements to candidate ranking and evidence aggregation.
+- Trio-based analysis, if required.
+- Evaluation of additional long-read variant-analysis tools.
+- Continued comparison with existing long-read workflows.
 
-- check the screen regulary if you want -red colour is bad
+## Related projects
 
-- qstat -u your_hpc_username if you want
+- [nf-core/pacvar](https://nf-co.re/pacvar/)
+- [PacBio HiFi somatic WDL](https://github.com/PacificBiosciences/HiFi-somatic-WDL)
+- [Workflow for long-read variant calling](https://github.com/core-unit-bioinformatics/workflow-smk-longread-variant-calling)
+- [Nallo](https://github.com/genomic-medicine-sweden/nallo)
+- [VCF annotation pipeline](https://github.com/ESR-NZ/vcf_annotation_pipeline)
 
-- check outputfolder if files are appearing
+## License
 
-- check clusterlogs_your_hpc_username for errors
+See the repository's [LICENSE](https://github.com/WestGermanGenomeCenter/pacbio_variants/blob/main/LICENSE) file.
 
-- check outputfolder/logs for errors that occured
+## Citation
 
-- if a multiqc_report.html is in the outputfolder then the pipeline is done
-
-- if the interactive job is done, but the pipeline is not done yet, retry
-
-- if you want to understand more, email me
-
-
-## transfering results:
-
-- you can transfer the complete outputfolder if you want. all results are stored in subfolders that should explain themselves.
-
-
-## roadmap:
-  trio calling : deeptrio, glnexus  -> only if there are requests for this. 
-  annotation improvements: incorporate many rules from https://github.com/ESR-NZ/vcf_annotation_pipeline if usable
-  new tools: check for useful tools in https://raw.githubusercontent.com/genomic-medicine-sweden/nallo/dev/docs/images/nallo_metromap.png 
-
-
-## why this work is being done:
-- nf-core/pacvar: https://nf-co.re/pacvar/1.0.1/
-    - does not run without sudo for us
-    - not all wanted tools included
-
-- pacbios wdl-based workflow: https://github.com/PacificBiosciences/HiFi-somatic-WDL
-    - doesnt run on our hardware
-
-- other, locally developed snakemake-based workflows: (eg: https://github.com/core-unit-bioinformatics/workflow-smk-longread-variant-calling)
-    - not all wanted tools included
-
-- Radboud's Valentine workflow:
-    - not available to us
-    - not all wanted tools included
-
-- smrtlinks internal pipeline:
-    - singularity not working, limited tool options
-    - not all wanted tools included
-
-- nallo: https://github.com/genomic-medicine-sweden/nallo
-    - no real reason other than its nextflow instead of snakemake (and i did not find it before the pipeline was already written)
-    - might take over some neat parts of it
-    - might use that workflow instead, will test how results compare (probably not much since included tools are very similar)
-    - development would then be not on my shoulders, so thats nice.
+If you use this pipeline in research, cite the repository and record the version or commit used, together with the configuration and relevant tool versions.
