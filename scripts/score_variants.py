@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-prioritize_snvs.py (v2.1) - shortlist of plausible SNVs/indels from VEP-annotated
+prioritize_snvs.py (v2.2) - shortlist of plausible SNVs/indels from VEP-annotated
 DeepVariant and/or NanoCaller VCFs. Stdlib only.
 
 Per variant:  score = impact * rarity * confidence * bonuses
@@ -12,7 +12,7 @@ Per variant:  score = impact * rarity * confidence * bonuses
   rarity      from MAX_AF (fallback gnomADg/gnomADe/1000G AF); no frequency = rare, but
               capped at 0.8 if the variant has an rsID; P/LP variants that are common are
               kept with a low rarity floor and flagged
-  confidence  mean over callers that PASS: QUAL (saturating, per-caller scale), VAF consistency
+  confidence  mean over callers that PASS: QUAL/GQ (saturating), VAF consistency
               with the genotype (two-sided binomial p-value, no penalty above p = 0.05),
               depth, strand balance (if ADF/ADR exist); x0.75 if only one of two callers
   bonus       x1.25 if a rare high/moderate variant has a partner in the same gene
@@ -61,7 +61,11 @@ COMPHET_MAX_AF = 0.01          # partners must be rarer than this
 COMPHET_MIN_IMPACT_SCORE = 0.6 # ... and at least MODERATE (or ClinVar P/LP)
 COMPHET_MAX_GENE_N = 30        # skip pairing in genes with more candidates
 FREQ_FALLBACK = ("gnomADg_AF", "gnomADe_AF", "AF")
-CONF_WEIGHTS = {"qual": 0.35, "vaf": 0.25, "depth": 0.25, "strand": 0.15}
+
+CONF_WEIGHTS = {"qual": 0.30, "vaf": 0.25, "depth": 0.20, "strand": 0.10, "gq": 0.15}
+GQ_FULL = 30.0
+NO_READ_EVIDENCE_RANGE = (0.3, 0.7)   # confidence span for calls with only QUAL/GQ
+NC_ONLY_INDEL_FACTOR = 0.5            # NanoCaller-only indel while DeepVariant is also supplied
 SINGLE_CALLER_FACTOR = 0.75
 RARITY_COMMON = 0.05   # AF at/above this -> rarity 0
 RARITY_FLOOR = 1e-5    # AF at/below this -> rarity 1
@@ -271,7 +275,7 @@ def pick_csq(csq, ix, alleles):
     
     if worst_isoform and worst_isoform[0] > pick[0] and worst_isoform[0] >= IMPACT_RANK["MODERATE"]:
         w = worst_isoform[3]
-        note = f"also {g(w, iimp)} {g(w, ix.get('Consequence', -1))} on {g(w, ix.get('Feature', -1))} ({g(w, ibio)}): isoform-only effect, down-weighted"
+        note = f"also {g(w, iimp)} {g(w, ix.get('Consequence', -1))} on {g(w, ix.get('Feature', -1))} ({g(w, ibio)}): isoform-only effect, not scored"
         if out["other_tx"]:
             out["other_tx"] += "; " + note
         else:
@@ -288,7 +292,7 @@ def pick_csq(csq, ix, alleles):
 
 
 class Call:
-    __slots__ = ("qual", "filt", "status", "gt", "hom", "dp", "vaf", "alt_f", "alt_r",
+    __slots__ = ("qual", "filt", "status", "gt", "hom", "dp", "gq", "vaf", "alt_f", "alt_r",
                  "ps", "hap", "qual_pct", "alt_n", "ref_n", "tot_n", "vaf_p")
 
 
@@ -372,6 +376,7 @@ def load_caller(path, label, a, fasta, stats, annot):
                 v = (d.get("VAF") or d.get("VF") or "").split(",")
                 call.vaf = to_float(v[i]) if len(v) > i else None
             call.dp = int(d["DP"]) if d.get("DP", ".").isdigit() else None
+            call.gq = to_float(d.get("GQ"))
             call.alt_f = adf[i + 1] if adf and len(adf) > i + 1 else None
             call.alt_r = adr[i + 1] if adr and len(adr) > i + 1 else None
             alt_n = ad[i + 1] if ad and len(ad) > i + 1 else None
@@ -438,14 +443,13 @@ def caller_confidence(c, full_dp, vaf_model="binomial"):
     terms = {}
     if c.qual_pct is not None:
         terms["qual"] = c.qual_pct
+    if c.gq is not None:
+        terms["gq"] = min(c.gq / GQ_FULL, 1.0)
     if vaf_model == "binomial" and c.alt_n is not None:
-        # For multi-allelic sites, tot_n includes other alts. 
-        # Use ref + this alt as n if ref_n is available to avoid spuriously penalizing.
         n_binom = (c.ref_n + c.alt_n) if c.ref_n is not None else c.tot_n
-        if n_binom > 0:
+        if n_binom:                      # was `> 0`: raised TypeError when tot_n is None
             c.vaf_p = binom_two_sided_p(c.alt_n, n_binom, HOM_EXPECTED_VAF if c.hom else 0.5)
             vaf_conf = min(1.0, c.vaf_p / VAF_P_FULL)
-            # Depth-aware caution: if n is very low, cap confidence to avoid false certainty
             if n_binom < 10:
                 vaf_conf = min(vaf_conf, 0.7)
             terms["vaf"] = vaf_conf
@@ -457,8 +461,11 @@ def caller_confidence(c, full_dp, vaf_model="binomial"):
         terms["strand"] = min(1.0, 2 * min(c.alt_f, c.alt_r) / (c.alt_f + c.alt_r))
     if not terms:
         return None
-    w = sum(CONF_WEIGHTS[k] for k in terms)
-    return sum(CONF_WEIGHTS[k] * v for k, v in terms.items()) / w
+    base = sum(CONF_WEIGHTS[k] * v for k, v in terms.items()) / sum(CONF_WEIGHTS[k] for k in terms)
+    if not (terms.keys() & {"vaf", "depth", "strand"}):
+        lo, hi = NO_READ_EVIDENCE_RANGE   # only QUAL/GQ: never high confidence
+        return lo + (hi - lo) * base
+    return base
 
 
 def contig_ok(chrom, extra):
@@ -678,6 +685,12 @@ def main():
         single = len(callers) > 1 and len(passed) == 1
         if single:
             conf *= SINGLE_CALLER_FACTOR
+        
+        nc_indel_note = ""
+        if len(ref) != len(alt) and set(passed) == {"nc"} and "dv" in callers:
+            conf *= NC_ONLY_INDEL_FACTOR
+            nc_indel_note = "NanoCaller-only indel (no read evidence, DeepVariant does not call it)"
+
         sym = csq.get("SYMBOL", "")
         prob_note = ""
         if ARTIFACT_GENE_RE.match(sym):
@@ -716,11 +729,17 @@ def main():
         if any(c.hom for c in passed.values()) and imp >= COMPHET_MIN_IMPACT_SCORE and rel >= CODING_NO_PHENO_REL \
                 and (af is None or af < COMPHET_MAX_AF):
             why.append("homozygous (recessive candidate)")
+        
+        if nc_indel_note:
+            why.append(nc_indel_note)
+            
         for lab, c in present.items():
             L = lab.upper()
             if c.status != "PASS":
                 why.append(f"{L} {c.status} (GT {c.gt}, DP {c.dp}, VAF {fmt(c.vaf, 2)})")
                 continue
+            if c.dp is None and c.alt_n is None and c.vaf is None:
+                why.append(f"{L}: no read-level evidence in this record (QUAL/GQ only)")
             if c.dp is not None and c.dp < a.full_credit_dp / 2:
                 why.append(f"low depth {L} (DP {c.dp})")
             if c.alt_f is not None and c.alt_r is not None:
