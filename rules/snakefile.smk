@@ -129,15 +129,9 @@ def get_output_files():
         all.extend(expand("{output_dir}/variants/sawfish_phased_{sample}/{sample}_genotyped.sv.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/variants/longphase_{sample}/{sample}_phased.vcf", sample=filenames_without_extension, output_dir=config["output_dir"])),
         all.extend(expand("{output_dir}/overlaped_variants/{sample}/{sample}_variant_overlap.pdf", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/steller_{sample}/{sample}_steller_te.high_confidence.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
+        all.extend(expand("{output_dir}/annotated_variants/steller_{sample}/{sample}_steller_te.annotated.tsv", sample=filenames_without_extension, output_dir=config["output_dir"])),
 
-       # all.extend(expand("{output_dir}/qc/{sample}/plots", sample=filenames_without_extension, output_dir=config["output_dir"])),
-        #         summary="{output_dir}/overlaped_variants/{sample}/{sample}_variant_overlap.pdf"
-
-#         tbi2="{output_dir}/annotated_variants/colorsdb_sawfish_phased_{sample}/{sample}_sawfish_phased_colorsdb.vcf.gz.tbi"
-
-
-
-    # all non-optional output, including multiqc
     all.extend(expand("{output_dir}/variants/trgt_{sample}/{sample}.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),
     all.extend(expand("{output_dir}/variants/paraphase_{sample}/{sample}_done.flag", sample=filenames_without_extension, output_dir=config["output_dir"])), 
     all.extend(expand("{output_dir}/variants/whatshap_{sample}/{sample}_phased.vcf.gz", sample=filenames_without_extension, output_dir=config["output_dir"])),

@@ -1,0 +1,14 @@
+name: steller
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python>=3.9
+  - pysam
+  - samtools
+  - minimap2
+  - scikit-learn
+  - numpy
+  - matplotlib
+  - bcftools
+  - htslib

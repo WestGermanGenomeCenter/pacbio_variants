@@ -19,6 +19,15 @@ use_svtopo: False             # visualizes svs called from sawfish, needs the ex
 use_colorsdb: True            # use svdb to add colorsdb data to sv annotation, useful for rare sv classification
 rank_variants: True           # ranks variants of both types, needs deepvariant, annotsv and nanocaller to be active aswell as vep. gets a top list and all variants scored
 
+# the options below are for transposable element detection with steller, needs a github clone of the repo, then point to it with steller_dir.
+run_steller: True
+steller_dir: "data/extra_annotation/steller/sTELLeR"
+steller_te_fasta: "data/extra_annotation/steller/TEsequences_SVA_HERV_ALU_L1.fasta"
+te_bam_source: "longphase"        # longphase | whatshap | aligned
+te_use_sv_vcf: True               # confirm TE calls against the Sniffles VCF (reported, not required)
+te_exclude_bed: ""                # optional BED of regions to distrust
+te_filter_extra: "--gt-source bam --require-sv-match-fam L1,SVA,ERV" # extra flags for the filter script
+
 
 # below are data files and folders. only change if needed / not using any hg38
 gnomad_svdb: "/gpfs/project/projects/bmfz_gtl/software/pb_variants/data/gnomad.v4.1.sv.sites.vcf.gz" # needs also to be indexed

@@ -198,3 +198,5 @@ rule variants_ranking_svs:
         """
         python scripts/score_svs.py --sniffles {input.sniffles} --sawfish {input.sawfish} --top-n 100 --output {output.summary} --output-all {output.all_tsv} >{log} 2>&1
         """
+
+
